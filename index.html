@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boekhouding</title>
+<meta name="theme-color" content="#F1F4F4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Boekhouding">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --ink:#0C1618; --ink-2:#22343A; --soft:#68818A; --faint:#93A7AD; --bg:#F1F4F4; --card:#FFFFFF;
+  --line:#E2E9E9; --sep:rgba(12,22,24,.08); --fill:#EDF1F1;
+  --accent:#0E6E62; --accent-soft:#E2F0ED; --pos:#0F7B5C; --pos-soft:#E4F2EC; --neg:#B5432E; --neg-soft:#FBE9E5;
+  --warn:#9C6A05; --warn-soft:#FBF0D9;
+  --pill:var(--ink); --pill-ink:#FFFFFF; --mint:var(--pos); --mint-bg:var(--pos-soft); --coral:var(--neg); --coral-bg:var(--neg-soft);
+  --amber:var(--warn); --amber-bg:var(--warn-soft); --blue:var(--accent); --field:#fff;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Enzo","Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:660px;margin:0 auto;padding:0 18px 128px}
+/* header */
+.navbar{position:sticky;top:0;z-index:8;display:flex;justify-content:space-between;align-items:center;margin:0 -18px;padding:10px 14px 10px 18px;background:rgba(241,244,244,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.navbar .mini{font-weight:600;font-size:15px;opacity:0;transition:opacity .18s;letter-spacing:-.01em}
+.navbar.scrolled{box-shadow:0 1px 0 var(--sep)}
+.navbar.scrolled .mini{opacity:1}
+.iconbtn{border:0;background:transparent;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;color:var(--ink-2)}
+.iconbtn svg{width:22px;height:22px}
+.iconbtn.plus{width:auto;padding:0 15px 0 11px;height:38px;background:var(--ink);color:#fff;border-radius:999px;gap:6px;display:inline-flex;align-items:center;font-size:15px;font-weight:600}
+.iconbtn.plus svg{width:16px;height:16px}
+.iconbtn.plus::after{content:"Nieuw"}
+.bigtitle{padding:4px 2px 16px}
+.bigtitle h1{font-size:31px;line-height:1.05;font-weight:600;letter-spacing:-.03em;margin:0}
+.bigtitle small{color:var(--soft);font-size:14px}
+/* floating nav */
+.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9;background:var(--ink);border-radius:999px;padding:6px;box-shadow:0 14px 34px rgba(12,22,24,.3);max-width:calc(100vw - 28px)}
+.tabs .in{display:flex;gap:2px}
+.tabs button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:rgba(255,255,255,.62);padding:8px 11px 7px;border-radius:999px;position:relative;letter-spacing:.01em}
+.tabs button svg{width:21px;height:21px}
+.tabs button[aria-current="page"]{background:rgba(255,255,255,.14);color:#fff}
+.badge{position:absolute;top:3px;left:calc(50% + 4px);min-width:16px;height:16px;border-radius:9px;background:var(--neg);color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center;padding:0 4px}
+/* segmented */
+.segctl{display:inline-flex;background:var(--fill);border-radius:999px;padding:3px;margin:0 0 16px}
+.segctl button{border:0;background:transparent;padding:7px 18px;border-radius:999px;font-size:14px;font-weight:500;color:var(--soft)}
+.segctl button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(12,22,24,.12)}
+/* structure */
+.label{color:var(--soft);font-size:13px;margin:26px 4px 9px;display:flex;justify-content:space-between;align-items:baseline;letter-spacing:.01em}
+.label button{border:0;background:none;color:var(--accent);font-size:14px;font-weight:600;padding:0}
+.card{background:var(--card);border-radius:16px;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.notes{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.note{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.note .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.note .ic.warn{background:var(--neg-soft);color:var(--neg)}
+.note .ic.info{background:var(--warn-soft);color:var(--warn)}
+.note .ic.ok{background:var(--pos-soft);color:var(--pos)}
+.note .ic svg{width:17px;height:17px}
+.note p{margin:0;flex:1;font-size:14.5px;line-height:1.35}
+.outline{border:0;background:var(--fill);color:var(--ink);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;white-space:nowrap}
+/* hero figure */
+.hero{background:var(--ink);color:#fff;border-radius:20px;padding:22px 22px 18px;margin-bottom:10px}
+.hero .k{color:rgba(255,255,255,.6);font-size:13.5px}
+.hero .v{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin-top:4px}
+.hero .sub{color:rgba(255,255,255,.55);font-size:13px;margin-top:6px}
+.hero .strip{display:flex;gap:8px;margin-top:18px}
+.hero .strip button{flex:1;border:0;background:rgba(255,255,255,.1);color:#fff;border-radius:12px;padding:11px 12px;text-align:left}
+.hero .strip .k{font-size:11.5px;color:rgba(255,255,255,.6);line-height:1.2}
+.hero .strip .v{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin-top:3px}
+.insights{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ins{display:flex;align-items:center;gap:11px;padding:14px;border:0;background:var(--card);border-radius:16px;text-align:left;width:100%;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.ins .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.ins .ic svg{width:17px;height:17px}
+.ins .ic.g{background:var(--pos-soft);color:var(--pos)}
+.ins .ic.r{background:var(--neg-soft);color:var(--neg)}
+.ins .ic.b{background:var(--accent-soft);color:var(--accent)}
+.ins .k{color:var(--soft);font-size:13px;line-height:1.2}
+.ins .v{font-weight:600;font-size:18px;margin-top:2px;letter-spacing:-.02em}
+.aside{margin-top:24px;padding:18px 20px;background:var(--card);border-radius:16px;box-shadow:0 1px 2px rgba(12,22,24,.05);border-left:3px solid var(--warn)}
+.aside h3{margin:0 0 10px;font-size:16px;font-weight:600}
+.aside .r{display:flex;justify-content:space-between;gap:14px;padding:4px 0;font-size:14.5px;color:var(--soft)}
+.aside .r span:last-child{white-space:nowrap;color:var(--ink)}
+.aside .r.tot{font-weight:600;border-top:1px solid var(--sep);margin-top:6px;padding-top:10px;font-size:16px;color:var(--ink)}
+.aside p{margin:10px 0 0;font-size:12.5px;color:var(--faint)}
+/* rows */
+.rows{padding:2px 0}
+.trow{display:flex;align-items:center;gap:13px;padding:12px 16px;border:0;background:transparent;width:100%;text-align:left;position:relative}
+.trow+.trow::before,.doc+.doc::before,.krow+.krow::before{content:"";position:absolute;top:0;right:16px;left:60px;border-top:1px solid var(--sep)}
+.doc+.doc::before{left:16px}
+.bar{width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--pos-soft);color:var(--pos)}
+.bar.out{background:var(--neg-soft);color:var(--neg)}
+.bar svg{width:16px;height:16px}
+.trow .main{flex:1;min-width:0}
+.trow .t{font-weight:500;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .s{color:var(--soft);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .amt{text-align:right;font-weight:600;font-size:15.5px;white-space:nowrap;letter-spacing:-.01em}
+.trow .st{font-size:12px;color:var(--soft);text-align:right;margin-top:1px}
+.st{font-size:13px}
+.st.betaald,.st.geaccepteerd{color:var(--pos)}
+.st.verstuurd{color:var(--soft)}
+.st.late,.st.afgewezen,.st.open{color:var(--neg)}
+.st.amber{color:var(--warn);font-weight:600}
+.clip{display:inline-block;width:13px;height:13px;vertical-align:-1px;margin-left:5px;color:var(--faint)}
+.summary{margin:0 4px 14px;color:var(--soft);font-size:13.5px}
+.summary b{color:var(--ink);font-weight:600}
+.linkb{border:0;background:none;color:var(--accent);font-size:13.5px;font-weight:600;padding:0}
+.search{width:100%;margin:2px 0 6px;padding:11px 14px 11px 38px;border:0;border-radius:14px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2368818A' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 13px center/16px;font-size:15.5px;-webkit-appearance:none;appearance:none;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.search::placeholder{color:var(--faint)}
+.chips{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:8px 0 2px;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{border:0;background:var(--card);padding:7px 14px;border-radius:999px;font-size:13.5px;white-space:nowrap;color:var(--soft);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;font-weight:500}
+.day{color:var(--faint);font-size:12.5px;margin:22px 4px 8px}
+.list{display:flex;flex-direction:column;overflow:hidden}
+.doc{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:0;background:transparent;width:100%;text-align:left;position:relative}
+.doc .t{font-weight:500;font-size:15.5px}
+.doc .s{color:var(--soft);font-size:13px;margin-top:2px}
+.doc .amt{font-weight:600;font-size:15.5px;text-align:right;white-space:nowrap;letter-spacing:-.01em}
+.doc::after,.krow::after{content:"";width:7px;height:7px;border-right:1.6px solid var(--faint);border-top:1.6px solid var(--faint);transform:rotate(45deg);flex:none;margin-left:4px}
+.empty{padding:30px 20px;text-align:center;color:var(--soft);font-size:14.5px;line-height:1.5}
+section.view{display:none}
+section.view.on{display:block}
+/* sheets */
+dialog.sheet{border:0;padding:0;margin:auto auto 0;width:100%;max-width:660px;max-height:94vh;max-height:94dvh;background:var(--bg);color:var(--ink);border-radius:22px 22px 0 0;overflow:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+dialog.sheet::backdrop{background:rgba(12,22,24,.42);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.sh-head{position:sticky;top:0;background:rgba(241,244,244,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-between;padding:12px 12px 10px 20px;z-index:2}
+.sh-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+.sh-head .iconbtn{width:32px;height:32px;background:var(--fill);color:var(--soft);border-radius:999px}
+.sh-head .iconbtn svg{width:14px;height:14px}
+.sh-body{padding:4px 18px 26px}
+.grab{width:34px;height:4px;border-radius:2px;background:#CBD6D6;margin:8px auto 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--soft);padding-left:2px}
+label.f input,label.f select,label.f textarea{padding:12px 13px;border-radius:13px;border:0;background:var(--card);color:var(--ink);font-size:15.5px;width:100%;min-width:0;-webkit-appearance:none;appearance:none;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+label.f select{background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2368818A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center/16px;padding-right:34px}
+label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+.seg{display:flex;background:var(--fill);border-radius:999px;padding:3px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:transparent;padding:9px;border-radius:999px;font-weight:500;font-size:14.5px;color:var(--soft)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(12,22,24,.12)}
+.lines{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.line{display:grid;grid-template-columns:1fr 1fr 1fr 30px;gap:8px;align-items:end;padding:13px;background:var(--card);border-radius:16px;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.line label.f input,.line label.f select{background-color:var(--fill);box-shadow:none}
+.line .oms{grid-column:1/-1}
+.line .del{border:0;background:transparent;color:var(--neg);font-size:22px;padding-bottom:6px}
+.totals{margin-top:12px;display:grid;gap:5px;padding:14px 18px;background:var(--card);border-radius:16px;font-size:14.5px;color:var(--soft);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.totals div{display:flex;justify-content:space-between}
+.totals div span:last-child{color:var(--ink)}
+.totals .g{font-weight:600;font-size:17px;border-top:1px solid var(--sep);padding-top:9px;margin-top:4px;color:var(--ink);letter-spacing:-.01em}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.btn{border:0;border-radius:14px;padding:14px 18px;background:var(--ink);color:#fff;font-weight:600;font-size:15.5px;flex:1 1 auto;min-width:140px;text-align:center}
+.btn.alt{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.btn.warn{background:var(--card);color:var(--neg);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.btn:disabled{opacity:.4}
+.btn:active,.iconbtn.plus:active,.outline:active{opacity:.75}
+.fine{font-size:12.5px;color:var(--faint);margin:12px 4px 0;line-height:1.5}
+.bon{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:var(--card);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.bon img{width:54px;height:54px;object-fit:cover;border-radius:10px;background:var(--fill)}
+.bon .bi{flex:1;font-size:14px;color:var(--soft)}
+.detail{background:var(--card);border-radius:16px;padding:6px 18px;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.detail .r{display:flex;justify-content:space-between;gap:10px;padding:10px 0;font-size:15px}
+.detail .r+.r{border-top:1px solid var(--sep)}
+.detail .r span:first-child{color:var(--soft)}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qgrid .detail{padding:12px 15px}
+.menu{display:flex;flex-direction:column;background:var(--card);border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.menu button{display:flex;align-items:center;gap:13px;padding:14px 16px;background:transparent;border:0;font-size:15.5px;text-align:left;position:relative}
+.menu button+button::before{content:"";position:absolute;top:0;right:16px;left:58px;border-top:1px solid var(--sep)}
+.menu .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center}
+.menu .ic svg{width:17px;height:17px}
+.menu .ic.g{background:var(--pos-soft)!important;color:var(--pos)!important}
+.menu .ic.r{background:var(--neg-soft)!important;color:var(--neg)!important}
+.banner{display:flex;gap:12px;align-items:center;padding:14px 16px;border-radius:16px;margin-bottom:12px;font-size:14.5px;background:var(--card);box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.banner.amber{border-left:3px solid var(--warn)}
+.banner.amber svg{color:var(--warn)}
+.banner.ok{border-left:3px solid var(--pos)}
+.banner.ok svg{color:var(--pos)}
+.banner svg{width:20px;height:20px;flex:none}
+.chan{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+.chan button,.chan a{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 6px;border:0;border-radius:16px;background:var(--card);font-weight:500;font-size:12.5px;color:var(--ink);text-decoration:none;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.chan svg{width:23px;height:23px;color:var(--accent)}
+.confirm{margin-top:12px;padding:16px;border-radius:16px;background:var(--accent-soft)}
+.confirm p{margin:0 0 10px;font-weight:600;font-size:14.5px}
+.kpick{display:flex;gap:8px;align-items:end}
+.kpick label{flex:1}
+.check{display:flex;align-items:center;gap:11px;margin-top:12px;font-size:14.5px;padding:13px 15px;background:var(--card);border-radius:16px;box-shadow:0 1px 2px rgba(12,22,24,.05)}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.avatar{width:38px;height:38px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:14px;flex:none}
+.krow{display:flex;align-items:center;gap:12px;padding:12px 16px;border:0;background:transparent;width:100%;text-align:left;position:relative}
+.krow .main{flex:1;min-width:0}
+.krow .t{font-weight:500;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.krow .s{color:var(--soft);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paper-wrap{background:#DEE6E6;border-radius:16px;padding:12px;overflow:hidden}
+.paper{background:#fff;color:#08272B;width:794px;min-height:1123px;padding:60px 76px;transform-origin:top left;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.45;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.12);letter-spacing:0}
+.paper .strip{position:absolute;left:0;top:0;right:0;height:15px;background:#0E6E62}
+.paper .hd{display:flex;justify-content:space-between;align-items:flex-start}
+.paper .biz{font-size:25px;font-weight:700}
+.paper .me{text-align:right;color:#6B7C85;font-size:12px}
+.paper .two{display:flex;justify-content:space-between;margin-top:56px}
+.paper .meta td{padding:1px 0 1px 26px;text-align:right}.paper .meta td:first-child{color:#6B7C85;text-align:left;padding-left:0}
+.paper h1{font-size:30px;margin:52px 0 14px}
+.paper table.items{width:100%;border-collapse:collapse}
+.paper .items th{font-weight:400;color:#6B7C85;font-size:12px;text-align:right;padding:6px 0;border-bottom:1.5px solid #08272B}
+.paper .items th:first-child,.paper .items td:first-child{text-align:left}
+.paper .items td{padding:8px 0;text-align:right;vertical-align:top}
+.paper .sum{margin-left:auto;width:290px;margin-top:10px;border-top:1px solid #E2E8EE;padding-top:8px}
+.paper .sum div{display:flex;justify-content:space-between;padding:3px 0}
+.paper .sum .g{font-weight:700;font-size:16px}
+.paper .pay{color:#6B7C85;margin-top:26px;font-size:12px}
+.paper .qr{display:flex;align-items:center;gap:14px;margin-top:26px}
+.paper .qr img{width:104px;height:104px}
+.paper .qr span{color:#6B7C85;font-size:11.5px;line-height:1.5}
+.paper .ft{position:absolute;left:0;right:0;bottom:36px;text-align:center;color:#6B7C85;font-size:11px}
+.login-card{max-width:400px;margin:12vh auto 0;padding:28px 22px;background:var(--card);border-radius:20px;box-shadow:0 10px 30px rgba(12,22,24,.12)}
+.login-card label.f input{background:var(--fill);box-shadow:none}
+.login-card h1{margin:0;font-size:28px;letter-spacing:-.03em}
+#login{position:fixed;inset:0;z-index:100;background:var(--bg);overflow:auto;padding:0 18px env(safe-area-inset-bottom,0px)}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:14.5px;font-weight:500;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;max-width:88vw;box-shadow:0 10px 26px rgba(12,22,24,.28)}
+.toast.on{opacity:1}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+/* ---------- beweging ---------- */
+:root{--spring:cubic-bezier(.2,.9,.25,1.12);--ease:cubic-bezier(.22,.8,.28,1)}
+@media (prefers-reduced-motion: no-preference){
+  section.view.on{animation:viewIn .42s var(--ease) both}
+  @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  section.view.on .card,section.view.on .hero,section.view.on .aside,section.view.on .day,section.view.on .summary,section.view.on .chips,section.view.on .search{animation:rise .5s var(--ease) both}
+  section.view.on > *:nth-child(1){animation-delay:.02s}section.view.on > *:nth-child(2){animation-delay:.06s}
+  section.view.on > *:nth-child(3){animation-delay:.10s}section.view.on > *:nth-child(4){animation-delay:.14s}
+  section.view.on > *:nth-child(5){animation-delay:.18s}section.view.on > *:nth-child(6){animation-delay:.22s}
+  section.view.on > * > *:nth-child(n+2){animation-delay:.2s}
+  @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+  .hero{background-size:200% 200%;background-image:radial-gradient(120% 90% at 100% 0%,rgba(14,110,98,.55),transparent 60%),radial-gradient(90% 80% at 0% 100%,rgba(255,255,255,.06),transparent 60%);animation:rise .5s var(--ease) both,drift 14s ease-in-out infinite alternate}
+  @keyframes drift{from{background-position:0% 0%}to{background-position:100% 100%}}
+  .hero .v.bump{animation:bump .5s var(--spring)}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1)}}
+  dialog.sheet[open]{animation:sheetIn .46s var(--spring) both}
+  dialog.sheet[open]::backdrop{animation:fadeIn .3s ease both}
+  dialog.sheet.closing{animation:sheetOut .24s ease-in both}
+  dialog.sheet.closing::backdrop{animation:fadeOut .24s ease-in both}
+  @keyframes sheetIn{from{transform:translateY(100%)}to{transform:none}}
+  @keyframes sheetOut{to{transform:translateY(105%)}}
+  @keyframes fadeIn{from{opacity:0}}@keyframes fadeOut{to{opacity:0}}
+  .sh-body > *{animation:rise .45s var(--ease) both}
+  .sh-body > *:nth-child(2){animation-delay:.04s}.sh-body > *:nth-child(3){animation-delay:.08s}.sh-body > *:nth-child(n+4){animation-delay:.12s}
+  .toast{transform:translate(-50%,16px) scale(.96);transition:opacity .25s,transform .35s var(--spring)}
+  .toast.on{transform:translate(-50%,0) scale(1)}
+  .btn,.chip,.iconbtn.plus,.outline,.ins,.trow,.doc,.krow,.menu button,.chan button,.hero .strip button,.tabs button,.segctl button,.seg button{transition:transform .18s var(--spring),background-color .2s,color .2s,box-shadow .2s}
+  .btn:active,.chip:active,.iconbtn.plus:active,.outline:active,.ins:active,.menu button:active,.chan button:active,.hero .strip button:active{transform:scale(.96)}
+  .trow:active,.doc:active,.krow:active{transform:scale(.985);background:var(--fill)}
+  .tabs .ind{transition:transform .45s var(--spring),width .45s var(--spring)}
+  .bar-fill{animation:grow 1s var(--ease) both}
+  @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .badge{animation:pop .5s var(--spring) both}
+  @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+  .iconbtn.plus svg{transition:transform .35s var(--spring)}
+  .iconbtn.plus:hover svg,.iconbtn.plus:active svg{transform:rotate(90deg)}
+}
+.tabs .in{position:relative}
+.tabs .ind{position:absolute;top:0;left:0;height:100%;border-radius:999px;background:rgba(255,255,255,.14);pointer-events:none}
+.tabs button[aria-current="page"]{background:transparent!important}
+.bar-fill{transform-origin:left center}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:200;overflow:hidden}
+.confetti i{position:absolute;width:8px;height:12px;border-radius:2px;top:0;left:0;will-change:transform,opacity}
+.update{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:150;background:var(--ink);color:#fff;border-radius:14px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;font-size:14px;box-shadow:0 10px 26px rgba(12,22,24,.28);max-width:92vw}
+.update button{border:0;border-radius:10px;background:#fff;color:var(--ink);font-weight:600;padding:7px 12px}
+.offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:140;background:var(--warn-soft);color:var(--warn);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600}
+
+@media (max-width:370px){.tabs button{padding:8px 8px 7px}.hero .v{font-size:34px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="navbar" id="navbar">
+    <button class="iconbtn" id="menuBtn" aria-label="Instellingen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <span class="mini" id="miniTitle">Overzicht</span>
+    <button class="iconbtn plus" id="fab" aria-label="Nieuw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+  <div class="bigtitle"><h1 id="bigTitle">Overzicht</h1><small><span id="bizName">Monfils Noordwijk</span><span id="syncDot"> · </span><span id="sync">Laden…</span></small></div>
+
+  <!-- HOME -->
+  <section class="view on" id="v-home">
+    <div class="hero">
+      <button class="k" id="yearBtn" style="border:0;background:none;color:inherit;font:inherit;padding:0">Winst <span id="yearLbl"></span> ▾</button>
+      <div class="v" id="iWinst">€ 0</div>
+      <div class="sub" id="heroSub"></div>
+      <div class="strip">
+        <button id="btwBtn"><div class="k" id="iBtwK">Btw kwartaal</div><div class="v" id="iBtw">€ 0</div></button>
+        <button id="debBtn"><div class="k">Te ontvangen</div><div class="v" id="iOntv">€ 0</div></button>
+        <button data-go="uitgaven" data-uf="open"><div class="k">Te betalen</div><div class="v" id="iBetaal">€ 0</div></button>
+      </div>
+    </div>
+    <div id="notesWrap"></div>
+    <div class="label">Laatste transacties<button data-go="transacties">Alles</button></div>
+    <div class="card rows" id="lastTx"></div>
+    <div class="aside">
+      <h3>Niet uitgeven</h3>
+      <div class="r"><span>Btw voor de aangifte</span><span id="aBtw">€ 0</span></div>
+      <div class="r"><span id="aResL">Reserve inkomstenbelasting</span><span id="aRes">€ 0</span></div>
+      <div class="r tot"><span>Zet opzij</span><span id="aTot">€ 0</span></div>
+      <p id="aDead"></p>
+      <div class="btnrow" style="margin-top:12px"><button class="btn alt" id="taxBtn">Belasting bekijken</button><button class="btn alt" id="jaarBtn">Jaaroverzicht</button></div>
+    </div>
+  </section>
+
+  <!-- TRANSACTIES -->
+  <section class="view" id="v-transacties">
+    <div class="segctl" role="group" aria-label="Soort"><button data-go="transacties" aria-pressed="true">Transacties</button><button data-go="uren" aria-pressed="false">Uren</button></div>
+    <p class="summary" id="txSum"></p>
+    <input class="search" id="txSearch" type="search" placeholder="Zoek in transacties" aria-label="Zoek in transacties">
+    <div class="chips" id="txChips">
+      <button class="chip" data-f="all" aria-pressed="true">Alles</button>
+      <button class="chip" data-f="in">Inkomsten</button>
+      <button class="chip" data-f="uit">Uitgaven</button>
+      <button class="chip" data-f="contant">Contant</button>
+      <button class="chip" data-f="prive">Privé</button>
+    </div>
+    <div id="txList"></div>
+  </section>
+
+  <!-- UREN -->
+  <section class="view" id="v-uren">
+    <div class="segctl" role="group" aria-label="Soort"><button data-go="transacties" aria-pressed="false">Transacties</button><button data-go="uren" aria-pressed="true">Uren</button></div>
+    <p class="summary" id="urSum"></p>
+    <div class="card" id="urBar" style="padding:14px 16px;margin-bottom:6px"></div>
+    <div id="urList"></div>
+  </section>
+
+  <!-- FACTUREN -->
+  <section class="view" id="v-facturen">
+    <div class="segctl" role="group" aria-label="Soort document"><button data-go="facturen" aria-pressed="true">Facturen</button><button data-go="offertes" aria-pressed="false">Offertes</button></div>
+    <p class="summary" id="invSum"></p>
+    <input class="search" id="invSearch" type="search" placeholder="Zoek op klant of nummer" aria-label="Zoek facturen">
+    <div class="chips" id="invChips">
+      <button class="chip" data-f="all" aria-pressed="true">Alles</button>
+      <button class="chip" data-f="concept">Concept</button>
+      <button class="chip" data-f="definitief">Nog niet verstuurd</button>
+      <button class="chip" data-f="verstuurd">Verstuurd</button>
+      <button class="chip" data-f="betaald">Betaald</button>
+      <button class="chip" data-f="laat">Te laat</button>
+    </div>
+    <div id="invList"></div>
+  </section>
+
+  <!-- UITGAVEN -->
+  <section class="view" id="v-uitgaven">
+    <div class="segctl" role="group" aria-label="Soort"><button data-go="uitgaven" aria-pressed="true">Uitgaven</button><button data-go="investeringen" aria-pressed="false">Investeringen</button></div>
+    <p class="summary" id="uitSum"></p>
+    <div class="chips" id="uitChips">
+      <button class="chip" data-f="all" aria-pressed="true">Alles</button>
+      <button class="chip" data-f="nobon">Zonder bonnetje</button>
+      <button class="chip" data-f="open">Nog te betalen</button>
+    </div>
+    <div id="uitList"></div>
+  </section>
+
+  <!-- INVESTERINGEN -->
+  <section class="view" id="v-investeringen">
+    <div class="segctl" role="group" aria-label="Soort"><button data-go="uitgaven" aria-pressed="false">Uitgaven</button><button data-go="investeringen" aria-pressed="true">Investeringen</button></div>
+    <p class="summary" id="ivSum"></p>
+    <div id="ivList"></div>
+  </section>
+
+  <!-- OFFERTES -->
+  <section class="view" id="v-offertes">
+    <div class="segctl" role="group" aria-label="Soort document"><button data-go="facturen" aria-pressed="false">Facturen</button><button data-go="offertes" aria-pressed="true">Offertes</button></div>
+    <div id="offList"></div>
+  </section>
+
+  <!-- KLANTEN -->
+  <section class="view" id="v-klanten">
+    <p class="summary" id="kSum"></p>
+    <input class="search" id="kSearch" type="search" placeholder="Zoek klant" aria-label="Zoek klant">
+    <div id="kList" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<nav class="tabs" aria-label="Onderdelen"><div class="in"><span class="ind" aria-hidden="true"></span>
+  <button data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 13h6V4H4zm0 7h6v-5H4zm10 0h6v-9h-6zm0-16v5h6V4z"/></svg>Overzicht<span class="badge" id="badge" hidden>0</span></button>
+  <button data-tab="transacties"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>Transacties</button>
+  <button data-tab="facturen"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-6 16v-2h8v2zm0-4v-2h8v2zm5-5V3.5L18.5 9z"/></svg>Facturen</button>
+  <button data-tab="uitgaven"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 2h14v20l-2.3-1.5L14.3 22 12 20.5 9.7 22l-2.4-1.5L5 22zm3 5v2h8V7zm0 4v2h8v-2zm0 4v2h5v-2z"/></svg>Uitgaven</button>
+  <button data-tab="klanten"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 16 11zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.3 0-7 1.2-7 3.5V19h7v-2.5c0-1 .4-2.1 1.8-3.1A11 11 0 0 0 8 13zm8 0c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg>Klanten</button>
+</div></nav>
+<dialog class="sheet" id="sheet" aria-labelledby="shTitle"><div class="grab"></div><div class="sh-head"><h2 id="shTitle"></h2><button class="iconbtn" id="shClose" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><div class="sh-body" id="shBody"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const eur=new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'});
+const fm=n=>eur.format(Math.round((n||0)*100)/100);
+const r2=n=>Math.round((+n||0)*100)/100;
+const num=v=>parseFloat(String(v??'').replace(',','.'))||0;
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>iso(new Date());
+const nlDate=s=>{if(!s)return'';const[y,m,d]=s.split('-');return `${d}-${m}-${y}`};
+const longDate=s=>new Date(s+'T12:00:00').toLocaleDateString('nl-NL',{day:'2-digit',month:'long',year:'numeric'});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
+
+const DEF_IN=['Omzet werkzaamheden','Omzet producten','Doorbelaste kosten','Rente en overig','Privé-storting'];
+const DEF_UIT=['Materiaal en middelen','Gereedschap','Vervoer','Telefoon en internet','Software en website','Verzekeringen','Reclame','Kantoor','Huur werkruimte','Opleiding','Bankkosten','Overig','Privé-opname'];
+const splitCats=(t,d)=>{const l=String(t||'').split('\n').map(x=>x.trim()).filter(Boolean);return l.length?l:d};
+const CATS=k=>k==='in'?splitCats(S.settings.catIn,DEF_IN):splitCats(S.settings.catUit,DEF_UIT);
+const PRIVE=['Privé-storting','Privé-opname'];
+const DEF={naam:'Monfils Noordwijk',adres:'',plaats:'Noordwijk',tel:'',mail:'',web:'monfilsnoordwijk.nl',kvk:'',btwnr:'',iban:'',res:'25',qr:'ja',kor:'nee',startNr:'25',zelfst:'1200',loon:'',loonheffing:'',voorlopig:'',starters:'nee',mkb:'12.7',urennorm:'1225',catIn:DEF_IN.join('\n'),catUit:DEF_UIT.join('\n')};
+const S={settings:{...DEF},tx:[],inv:[],off:[],klant:[],invest:[],uren:[],year:new Date().getFullYear(),tab:'home',txF:'all',invF:'all',uitF:'all',q:'',invQ:''};
+
+/* ---------------- storage ---------------- */
+let sb=null,me=null,assets=null,chan=null;
+const downloads={async save({filename,data}){const type=/\.json$/i.test(filename)?'application/json':/\.csv$/i.test(filename)?'text/csv;charset=utf-8':'application/octet-stream';
+  const blob=data instanceof Blob?data:new Blob([data],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}};
+const LS='monfils-boekhouding-v1';
+function lsLoad(){try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j){S.settings={...DEF,...(j.settings||{})};S.tx=j.tx||[];S.inv=(j.inv||[]).map(normInv);S.off=j.off||[];S.klant=j.klant||[];S.invest=j.invest||[];S.uren=j.uren||[]}}catch(e){}}
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify({settings:S.settings,tx:S.tx,inv:S.inv,off:S.off,klant:S.klant,invest:S.invest,uren:S.uren}))}catch(e){}}
+function normInv(f){return f.status==='open'?{...f,status:'verstuurd'}:f}
+function localPut(arr,o){const i=arr.findIndex(x=>x.id===o.id);if(i>=0)arr[i]=o;else arr.push(o)}
+const KINDS=['tx','inv','off','klant','invest','uren'];
+const OB='boekhouding-outbox';
+const outbox={get(){try{return JSON.parse(localStorage.getItem(OB)||'[]')}catch(e){return[]}},set(a){try{localStorage.setItem(OB,JSON.stringify(a))}catch(e){}},
+  add(x){const a=outbox.get().filter(y=>!(y.kind===x.kind&&y.id===x.id));a.push(x);outbox.set(a)}};
+async function flushOutbox(){if(!sb||!me||!navigator.onLine)return;const a=outbox.get();if(!a.length)return;const rest=[];
+  for(const x of a){try{if(x.op==='del'){const {error}=await sb.from('records').delete().match({user_id:me.id,kind:x.kind,id:x.id});if(error)throw error}
+    else{const {error}=await sb.from('records').upsert({user_id:me.id,kind:x.kind,id:x.id,data:x.data},{onConflict:'user_id,kind,id'});if(error)throw error}}catch(e){rest.push(x)}}
+  outbox.set(rest);if(!rest.length)toast('Offline wijzigingen zijn opgeslagen')}
+async function remote(fn,x){try{await fn()}catch(e){if(!navigator.onLine||/fetch|network/i.test(String(e&&e.message))){outbox.add(x);return}throw e}}
+const store={
+  async put(kind,o){localPut(S[kind],kind==='inv'?normInv(o):o);lsSave();render();
+    if(sb&&me)await remote(async()=>{const {error}=await sb.from('records').upsert({user_id:me.id,kind,id:o.id,data:o},{onConflict:'user_id,kind,id'});if(error)throw error},{op:'put',kind,id:o.id,data:o})},
+  async del(kind,id){S[kind]=S[kind].filter(x=>x.id!==id);lsSave();render();
+    if(sb&&me)await remote(async()=>{const {error}=await sb.from('records').delete().match({user_id:me.id,kind,id});if(error)throw error},{op:'del',kind,id})},
+  async settings(s){S.settings=s;lsSave();render();
+    if(sb&&me)await remote(async()=>{const {error}=await sb.from('records').upsert({user_id:me.id,kind:'settings',id:'settings',data:s},{onConflict:'user_id,kind,id'});if(error)throw error},{op:'put',kind:'settings',id:'settings',data:s})}
+};
+async function safe(p,msg){try{await p;if(msg)toast(msg);return true}catch(e){console.error(e);toast(!navigator.onLine?'Geen internet. Probeer het zo opnieuw.':'Opslaan lukte niet. Probeer het opnieuw.');return false}}
+/* bonnetjes in Supabase Storage */
+const BUCKET='bonnetjes';
+assets={async upload(blob){const ext=(blob.type.split('/')[1]||'bin').replace('jpeg','jpg').replace(/[^a-z0-9]/g,'');
+  const path=`${me.id}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const {error}=await sb.storage.from(BUCKET).upload(path,blob,{contentType:blob.type||'application/octet-stream',upsert:false});if(error)throw error;return{id:path}}};
+const urlCache={};
+async function bonUrl(path){if(!path||!sb||!path.includes('/'))return null;if(urlCache[path]&&urlCache[path].t>Date.now())return urlCache[path].u;
+  const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(path,3600);if(error)return null;urlCache[path]={u:data.signedUrl,t:Date.now()+3000000};return data.signedUrl}
+/* verbinden */
+async function connect(){
+  lsLoad();render();
+  const cfg=window.APP_CONFIG||{};
+  if(!window.supabase||!cfg.supabaseUrl||/JOUW/.test(cfg.supabaseUrl)){setSync('Niet verbonden: vul config.js in');return}
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  const {data:{session}}=await sb.auth.getSession();
+  sb.auth.onAuthStateChange((ev,sess)=>{if(ev==='SIGNED_IN'&&sess&&!me){me=sess.user;hideLogin();loadAll()}if(ev==='SIGNED_OUT'){try{localStorage.removeItem(LS)}catch(e){}location.reload()}});
+  if(!session){showLogin();return}
+  me=session.user;loadAll();
+}
+async function loadAll(){setSync('Laden…');if(!navigator.onLine){setSync('Offline');render();return}await flushOutbox();
+  const rows=[];for(let from=0;;from+=1000){const {data,error}=await sb.from('records').select('kind,id,data').order('kind').order('id').range(from,from+999);
+    if(error){setSync('Laden lukte niet');toast('Je gegevens konden niet geladen worden');return}rows.push(...data);if(data.length<1000)break}
+  if(!rows.length&&(S.tx.length||S.inv.length||S.klant.length||S.uren.length)){await pushLocal();return loadAll()}
+  const next={settings:{...DEF},tx:[],inv:[],off:[],klant:[],invest:[],uren:[]};
+  for(const r of rows){if(r.kind==='settings')next.settings={...DEF,...r.data};else if(next[r.kind])next[r.kind].push(r.kind==='inv'?normInv(r.data):r.data)}
+  Object.assign(S,next);lsSave();render();setSync('Opgeslagen in je account');subscribe();shortcut()}
+async function pushLocal(){const rows=[];for(const k of KINDS)for(const o of S[k])rows.push({user_id:me.id,kind:k,id:o.id,data:o});
+  rows.push({user_id:me.id,kind:'settings',id:'settings',data:S.settings});
+  for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('records').upsert(rows.slice(i,i+200),{onConflict:'user_id,kind,id'});if(error){toast('Overzetten lukte niet');return}}
+  toast('Gegevens van dit apparaat staan nu in je account')}
+function subscribe(){if(chan)return;
+  chan=sb.channel('records-'+me.id).on('postgres_changes',{event:'*',schema:'public',table:'records',filter:`user_id=eq.${me.id}`},p=>{
+    const r=p.eventType==='DELETE'?p.old:p.new;if(!r||!r.kind)return;
+    if(r.kind==='settings'){if(p.eventType!=='DELETE')S.settings={...DEF,...r.data}}
+    else if(S[r.kind]){if(p.eventType==='DELETE')S[r.kind]=S[r.kind].filter(x=>x.id!==r.id);else localPut(S[r.kind],r.kind==='inv'?normInv(r.data):r.data)}
+    lsSave();render()}).subscribe()}
+/* inloggen */
+function showLogin(){let el=$('#login');if(!el){el=document.createElement('div');el.id='login';document.body.appendChild(el)}
+  el.innerHTML=`<div class="login-card"><h1>Boekhouding</h1><p class="fine" style="margin:4px 0 18px">Log in om je administratie te openen.</p>
+  <form id="lgF"><label class="f">E-mail<input type="email" name="email" required autocomplete="email"></label>
+  <label class="f" style="margin-top:10px">Wachtwoord<input type="password" name="pw" required minlength="8" autocomplete="current-password"></label>
+  <div class="btnrow"><button class="btn" type="submit">Inloggen</button></div>
+  <div class="btnrow" style="margin-top:8px"><button class="btn alt" type="button" id="lgNew">Account maken</button><button class="btn alt" type="button" id="lgForgot">Wachtwoord vergeten</button></div>
+  <p class="fine" id="lgMsg" role="status"></p></form></div>`;
+  const F=$('#lgF'),msg=t=>{$('#lgMsg').textContent=t};
+  F.onsubmit=async e=>{e.preventDefault();msg('Bezig…');const {error}=await sb.auth.signInWithPassword({email:F.email.value.trim(),password:F.pw.value});
+    if(error)msg(error.message.includes('Email not confirmed')?'Bevestig eerst je e-mailadres via de mail van Supabase.':'Inloggen lukte niet. Klopt je wachtwoord?')};
+  $('#lgNew').onclick=async()=>{if(!F.reportValidity())return;msg('Account maken…');const {data,error}=await sb.auth.signUp({email:F.email.value.trim(),password:F.pw.value,options:{emailRedirectTo:location.href.split('#')[0]}});
+    if(error)msg(error.message);else if(!data.session)msg('Account gemaakt. Klik op de link in je mail en log daarna in.')};
+  $('#lgForgot').onclick=async()=>{if(!F.email.value){msg('Vul eerst je e-mailadres in.');return}const {error}=await sb.auth.resetPasswordForEmail(F.email.value.trim(),{redirectTo:location.href.split('#')[0]});msg(error?error.message:'Check je mail voor een link om je wachtwoord te wijzigen.')};
+}
+function hideLogin(){const el=$('#login');if(el)el.remove()}
+function setSync(t){const e=$('#sync');e.textContent=t;e.hidden=t==='Opgeslagen in je account';$('#syncDot').hidden=e.hidden}
+let tt;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('on'),2500)}
+
+/* ---------------- calculations ---------------- */
+const kor=()=>S.settings.kor==='ja';
+const yearOf=d=>+String(d||'').slice(0,4);
+const qOf=d=>Math.floor((+d.slice(5,7)-1)/3)+1;
+function docTotals(f){let ex=0,btw=0;for(const l of f.regels||[]){const e=num(l.aantal)*num(l.prijs);ex+=e;btw+=f.kor?0:e*num(l.btw)/100}return{ex:r2(ex),btw:r2(btw),inc:r2(ex+btw)}}
+const split=(inc,rate)=>{const ex=inc/(1+rate/100);return{ex,btw:inc-ex}};
+const sent=f=>f.status==='definitief'||f.status==='verstuurd'||f.status==='betaald';
+function afschrijvingIn(pred){let tot=0;
+  for(const it of S.invest){const excl=num(it.bedrag)-investBtw(it),basis=Math.max(0,excl-num(it.rest)),jaren=num(it.jaren)||5,perM=basis/(jaren*12);
+    const st=new Date(it.datum+'T12:00:00');
+    for(let m=0;m<jaren*12;m++){const d=new Date(st.getFullYear(),st.getMonth()+m,15);
+      if(pred(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-15'))tot+=perM}}
+  return tot}
+function figures(pred){
+  let omzet=0,btwU=0,kosten=0,voor=0;
+  kosten+=afschrijvingIn(pred);
+  for(const it of S.invest){if(pred(it.datum)&&!kor())voor+=investBtw(it)}
+  for(const f of S.inv){if(!sent(f)||!pred(f.datum))continue;const t=docTotals(f);omzet+=t.ex;btwU+=t.btw}
+  for(const t of S.tx){if(!pred(t.datum)||PRIVE.includes(t.cat))continue;
+    const s=split(num(t.bedrag),(kor()&&t.type==='in')?0:num(t.btw));
+    if(t.type==='in'){if(!t.factuurId){omzet+=s.ex;btwU+=s.btw}}else{kosten+=s.ex;voor+=kor()?0:s.btw}}
+  return{omzet,kosten,winst:omzet-kosten,btw:kor()?0:btwU-voor,btwU,voor};
+}
+const inYear=d=>yearOf(d)===S.year;
+const openInv=()=>S.inv.filter(f=>f.status==='verstuurd'||f.status==='definitief');
+const openUit=()=>S.tx.filter(t=>t.type==='uit'&&t.status==='open');
+function curQ(){const n=new Date();return{y:n.getFullYear(),q:Math.floor(n.getMonth()/3)+1}}
+function deadlineText(y,q){const m={1:['30 april',y],2:['31 juli',y],3:['31 oktober',y],4:['31 januari',y+1]}[q];return `${m[0]} ${m[1]}`}
+function nextNr(y){let max=Math.max(0,(+S.settings.startNr||1)-1);if(String(y)!==String(new Date().getFullYear()))max=0;
+  for(const f of S.inv){if(f.nummer&&f.nummer.startsWith(y+'-')){const n=+f.nummer.split('-')[1];if(n>max)max=n}}return `${y}-${String(max+1).padStart(5,'0')}`}
+function nextOffNr(y){let max=0;for(const o of S.off){if(o.nummer&&o.nummer.startsWith('OF'+y+'-')){const n=+o.nummer.split('-')[1];if(n>max)max=n}}return `OF${y}-${String(max+1).padStart(3,'0')}`}
+
+/* ---------------- render ---------------- */
+function render(){
+  $('#bizName').textContent=S.settings.naam||'Mijn bedrijf';
+  renderHome();renderTx();renderInv();renderUit();renderOff();renderKlanten();renderInvest();renderUren();
+}
+function notifications(){
+  const n=[],s=S.settings;
+  const nobon=S.tx.filter(t=>t.type==='uit'&&!t.bon&&!PRIVE.includes(t.cat)).length;
+  if(nobon)n.push({k:'warn',t:`We hebben nog een bonnetje nodig bij ${nobon} ${nobon===1?'uitgave':'uitgaven'}`,b:'Koppelen',a:()=>{S.uitF='nobon';go('uitgaven')}});
+  const late=openInv().filter(f=>f.verval&&f.verval<today());
+  if(late.length)n.push({k:'warn',t:`${late.length} ${late.length===1?'factuur is':'facturen zijn'} te laat betaald (${fm(late.reduce((a,f)=>a+docTotals(f).inc,0))})`,b:'Bekijken',a:()=>{S.invF='verstuurd';go('facturen')}});
+  const unsent=S.inv.filter(f=>f.status==='definitief');
+  if(unsent.length)n.unshift({k:'warn',t:`${unsent.length} ${unsent.length===1?'factuur is':'facturen zijn'} nog niet naar de klant gestuurd (${fm(unsent.reduce((a,f)=>a+docTotals(f).inc,0))})`,b:'Versturen',a:()=>{S.invF='definitief';go('facturen')}});
+  const con=S.inv.filter(f=>f.status==='concept').length;
+  if(con)n.push({k:'info',t:`${con} ${con===1?'conceptfactuur staat':'conceptfacturen staan'} nog klaar om te versturen`,b:'Bekijken',a:()=>{S.invF='concept';go('facturen')}});
+  if(!kor()){const c=curQ();n.push({k:'info',t:`Btw-aangifte kwartaal ${c.q}: uiterlijk ${deadlineText(c.y,c.q)} indienen en betalen`,b:'Bekijken',a:openBtw})}
+  if(!s.kvk||!s.iban||(!kor()&&!s.btwnr))n.push({k:'info',t:'Vul je KvK-nummer, btw-id en IBAN in, die moeten op je facturen staan',b:'Invullen',a:openSettings});
+  return n;
+}
+let showAllNotes=false;
+function renderHome(){
+  const n=notifications(),b=$('#badge');b.hidden=!n.length;b.textContent=n.length;
+  const shown=showAllNotes?n:n.slice(0,1);
+  const icon={warn:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22zm1 15h-2v-2h2zm0-4h-2V9h2z"/></svg>',info:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>'};
+  $('#notesWrap').innerHTML=n.length?`<div class="label" style="margin-top:0">Meldingen${n.length>1?`<button id="moreNotes">${showAllNotes?'Minder':(n.length-1)+' meer'}</button>`:''}</div><div class="notes">${shown.map((x,i)=>`<div class="card note"><span class="ic ${x.k}">${icon[x.k]}</span><p>${esc(x.t)}</p><button class="outline" data-note="${i}">${x.b}</button></div>`).join('')}</div>`:'';
+  $$('#notesWrap [data-note]').forEach(bt=>bt.onclick=()=>shown[+bt.dataset.note].a());
+  const mn=$('#moreNotes');if(mn)mn.onclick=()=>{showAllNotes=!showAllNotes;renderHome()};
+  const last=[...S.tx].sort(sortTx).slice(0,4);
+  $('#lastTx').innerHTML=last.length?last.map(txRow).join(''):`<div class="empty">Nog geen transacties. Tik op + om je eerste boeking te maken.</div>`;
+  const F=figures(inYear),c=curQ(),FQ=figures(d=>yearOf(d)===c.y&&qOf(d)===c.q);
+  $('#yearLbl').textContent=S.year;$('#heroSub').textContent=`Omzet ${fm(F.omzet)} · kosten ${fm(F.kosten)}`;
+  countTo($('#iWinst'),F.winst);
+  $('#iBtwK').textContent=`Btw kwartaal ${c.q}`;$('#iBtw').textContent=kor()?'KOR':fm(FQ.btw);
+  const ontv=openInv().reduce((a,f)=>a+docTotals(f).inc,0),bet=openUit().reduce((a,t)=>a+num(t.bedrag),0);
+  $('#iOntv').textContent=fm(ontv);$('#iBetaal').textContent=fm(bet);
+  const T=taxEstimate(S.year),res=T.totaal,bt=Math.max(0,FQ.btw);
+  $('#aBtw').textContent=fm(bt);$('#aResL').textContent=`Belasting ${S.year} (schatting)`;$('#aRes').textContent=fm(res);$('#aTot').textContent=fm(bt+res);
+  $('#aDead').textContent=kor()?'Met de KOR doe je geen btw-aangifte. Houd je administratie wel bij.':`Btw over kwartaal ${c.q} betaal je uiterlijk ${deadlineText(c.y,c.q)}.`;
+}
+function sortTx(a,b){return b.datum.localeCompare(a.datum)||(b.created||'').localeCompare(a.created||'')}
+function txRow(t){const out=t.type==='uit';const sub=[t.cat,t.betaal==='contant'?'contant':t.betaal==='tikkie'?'Tikkie':'bank'].filter(Boolean).join(' · ');
+  return `<button class="trow" data-tx="${t.id}"><span class="bar ${out?'out':''}">${out?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>'}</span><span class="main"><div class="t">${esc(t.oms)}</div><div class="s">${esc(sub)}</div></span><span><div class="amt">${out?'−':''}${fm(num(t.bedrag))}</div>${out&&t.status==='open'?'<div class="st open">Nog betalen</div>':''}</span></button>`}
+function grouped(items,dateOf,rowFn){if(!items.length)return'';let out='',cur=null,buf=[];
+  const flush=()=>{if(buf.length)out+=`<div class="day">${longDate(cur)}</div><div class="card list">${buf.join('')}</div>`;buf=[]};
+  for(const it of items){const d=dateOf(it);if(d!==cur){flush();cur=d}buf.push(rowFn(it))}flush();return out}
+function renderTx(){
+  const q=S.q.toLowerCase();let l=[...S.tx];
+  if(S.txF==='in')l=l.filter(t=>t.type==='in'&&!PRIVE.includes(t.cat));
+  if(S.txF==='uit')l=l.filter(t=>t.type==='uit'&&!PRIVE.includes(t.cat));
+  if(S.txF==='contant')l=l.filter(t=>t.betaal==='contant');
+  if(S.txF==='prive')l=l.filter(t=>PRIVE.includes(t.cat));
+  if(q)l=l.filter(t=>(t.oms+' '+t.cat).toLowerCase().includes(q));
+  l.sort(sortTx);
+  const Fy=figures(inYear);
+  $('#txSum').innerHTML=`Omzet <b>${fm(Fy.omzet)}</b> · kosten <b>${fm(Fy.kosten)}</b> · <button class="linkb" id="impLink">bank importeren</button>`;
+  $('#impLink').onclick=openImport;
+  $$('#txChips .chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.f===S.txF)));
+  $('#txList').innerHTML=l.length?grouped(l,t=>t.datum,t=>txRow(t)):`<div class="empty">Geen transacties gevonden.</div>`;
+}
+function stLabel(f){if(f.status==='betaald')return['betaald','Betaald'];if(f.status==='concept')return['','Concept'];if(f.status==='definitief')return['amber','Nog niet verstuurd'];if(f.verval&&f.verval<today())return['late','Te laat'];return['verstuurd','Verstuurd']}
+function renderInv(){
+  const F=figures(inYear),ont=openInv().reduce((a,f)=>a+docTotals(f).inc,0);
+  $('#invSum').innerHTML=`Te ontvangen <b>${fm(ont)}</b> · winst <b>${fm(F.winst)}</b> · <button class="linkb" id="debLink">debiteuren</button>`;
+  $('#debLink').onclick=openDebiteuren;
+  let l=[...S.inv];if(S.invF==='laat')l=l.filter(f=>f.status==='verstuurd'&&daysLate(f)>0);else if(S.invF!=='all')l=l.filter(f=>f.status===S.invF);
+  const q=S.invQ.toLowerCase();if(q)l=l.filter(f=>(f.klant.naam+' '+(f.nummer||'')).toLowerCase().includes(q));
+  l.sort((a,b)=>b.datum.localeCompare(a.datum)||(b.nummer||'zz').localeCompare(a.nummer||'zz'));
+  $$('#invChips .chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.f===S.invF)));
+  $('#invList').innerHTML=l.length?grouped(l,f=>f.datum,f=>{const[c,t]=stLabel(f);return `<button class="doc" data-inv="${f.id}"><span><div class="t">${esc(f.klant.naam)}</div><div class="s">${esc(f.nummer||'-')}${f.verzonden?` · verstuurd ${nlDate(f.verzonden.op).slice(0,5)}`:''}</div></span><span><div class="amt">${fm(docTotals(f).inc)}</div><div class="st ${c}" style="text-align:right;margin-top:3px">${t}</div></span></button>`}):`<div class="empty card" style="margin-top:14px">${S.inv.length?'Geen facturen met dit filter.':'Nog geen facturen. Tik op <b>Factuur</b> om je eerste te maken.'}</div>`;
+}
+function renderUit(){
+  const all=S.tx.filter(t=>t.type==='uit'&&!PRIVE.includes(t.cat));
+  $('#uitSum').innerHTML=`Kosten <b>${fm(figures(inYear).kosten)}</b> · te betalen <b>${fm(openUit().reduce((a,t)=>a+num(t.bedrag),0))}</b>`;
+  let l=all;if(S.uitF==='nobon')l=l.filter(t=>!t.bon);if(S.uitF==='open')l=l.filter(t=>t.status==='open');l=[...l].sort(sortTx);
+  $$('#uitChips .chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.f===S.uitF)));
+  const clip='<svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7L10.2 17a1.7 1.7 0 0 1-2.4-2.4L15 7.5"/></svg>';
+  $('#uitList').innerHTML=l.length?grouped(l,t=>t.datum,t=>`<button class="doc" data-tx="${t.id}"><span><div class="t">${esc(t.oms)}${t.bon?clip:''}</div><div class="s">${esc(t.cat)}${t.bon?'':' · geen bonnetje'}</div></span><span><div class="amt">${fm(num(t.bedrag))}</div><div class="st ${t.status==='open'?'open':'betaald'}" style="text-align:right;margin-top:3px">${t.status==='open'?'Nog betalen':'Betaald'}</div></span></button>`):`<div class="empty card" style="margin-top:14px">${all.length?'Niets gevonden met dit filter.':'Nog geen uitgaven. Tik op <b>Uitgave</b> en maak een foto van je bonnetje.'}</div>`;
+}
+function renderOff(){
+  const l=[...S.off].sort((a,b)=>b.datum.localeCompare(a.datum));
+  const lab={concept:['','Concept'],verstuurd:['verstuurd','Verstuurd'],geaccepteerd:['geaccepteerd','Geaccepteerd'],afgewezen:['afgewezen','Afgewezen'],gefactureerd:['betaald','Gefactureerd']};
+  $('#offList').innerHTML=l.length?grouped(l,o=>o.datum,o=>{const[c,t]=lab[o.status]||['',o.status];return `<button class="doc" data-off="${o.id}"><span><div class="t">${esc(o.klant.naam)}</div><div class="s">${esc(o.nummer||'-')}</div></span><span><div class="amt">${fm(docTotals(o).inc)}</div><div class="st ${c}" style="text-align:right;margin-top:3px">${t}</div></span></button>`}):`<div class="empty card" style="margin-top:14px">Nog geen offertes. Een offerte zet je met één tik om in een factuur.</div>`;
+}
+
+const initials=n=>String(n||'?').split(/\s+/).filter(w=>/[A-Za-z0-9]/.test(w[0]||'')).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
+const sameName=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+function klantStats(k){const inv=S.inv.filter(f=>sameName(f.klant.naam,k.naam)&&f.status!=='concept');return{n:inv.length,omzet:inv.reduce((a,f)=>a+docTotals(f).inc,0),open:inv.filter(f=>f.status==='verstuurd').reduce((a,f)=>a+docTotals(f).inc,0)}}
+function unsavedFromDocs(){const m=new Map();for(const d of [...S.inv,...S.off]){const nm=(d.klant.naam||'').trim();if(nm&&!S.klant.some(k=>sameName(k.naam,nm))&&!m.has(nm.toLowerCase()))m.set(nm.toLowerCase(),d.klant)}return[...m.values()]}
+let kQ='';
+function renderUren(){
+  const y=S.year,norm=num(S.settings.urennorm)||1225,tot=urenIn(y),pct=Math.min(100,tot/norm*100);
+  const direct=S.uren.filter(u=>yearOf(u.datum)===y&&u.soort!=='indirect').reduce((a,u)=>a+num(u.uren),0);
+  $('#urSum').innerHTML=`<b>${tot.toLocaleString('nl-NL')}</b> van ${norm} uur · ${fm(0).slice(0,0)}${Math.round(direct)} uur voor klanten`;
+  $('#urBar').innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--soft)"><span>Urencriterium ${y}</span><span>${Math.round(pct)}%</span></div>
+    <div style="height:9px;border-radius:5px;background:var(--fill);margin-top:8px;overflow:hidden"><div class="bar-fill" style="height:100%;width:${pct}%;background:${pct>=100?'var(--pos)':'var(--accent)'}"></div></div>
+    <div class="fine" style="margin-top:8px">${tot>=norm?'Je voldoet aan het urencriterium en hebt recht op de zelfstandigenaftrek.':`Nog ${r2(norm-tot).toLocaleString('nl-NL')} uur te gaan dit jaar. Dat is ongeveer ${Math.ceil((norm-tot)/Math.max(1,(52-Math.floor((new Date()-new Date(y+'-01-01'))/6048e5))))} uur per week.`}</div>`;
+  const l=S.uren.filter(u=>yearOf(u.datum)===y).sort((a,b)=>b.datum.localeCompare(a.datum));
+  $('#urList').innerHTML=l.length?grouped(l,u=>u.datum,u=>`<button class="doc" data-uren="${u.id}"><span><div class="t">${esc(u.oms||(u.soort==='indirect'?'Indirecte uren':'Werk'))}</div><div class="s">${esc(u.klant||'Indirect')}</div></span><span class="amt">${String(num(u.uren)).replace('.',',')} uur</span></button>`)
+    :`<div class="empty card" style="margin-top:14px">Nog geen uren geschreven. Schrijf ook je reistijd, offertes en administratie op, die tellen mee.</div>`;
+}
+function renderInvest(){
+  const l=[...S.invest].sort((a,b)=>b.datum.localeCompare(a.datum));
+  const jaar=S.invest.filter(i=>yearOf(i.datum)===S.year).reduce((a,i)=>a+(num(i.bedrag)-investBtw(i)),0);
+  const afs=afschrijvingIn(inYear);
+  const kia=jaar>2901&&jaar<70602;
+  $('#ivSum').innerHTML=`Geïnvesteerd in ${S.year} <b>${fm(jaar)}</b> · afschrijving <b>${fm(afs)}</b>`;
+  $('#ivList').innerHTML=(kia?`<div class="banner amber" style="margin-bottom:12px"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22zm1 15h-2v-2h2zm0-4h-2V9h2z"/></svg><span>Je investeert dit jaar meer dan €2.901. Vraag bij je aangifte de kleinschaligheidsinvesteringsaftrek (KIA) aan, dat scheelt ongeveer 28% van dit bedrag aan aftrek.</span></div>`:'')
+  +(l.length?`<div class="card list">${l.map(i=>`<button class="doc" data-invest="${i.id}"><span><div class="t">${esc(i.naam)}</div><div class="s">${nlDate(i.datum)} · ${i.jaren} jaar · boekwaarde ${fm(investBoekwaarde(i))}</div></span><span><div class="amt">${fm(num(i.bedrag))}</div><div class="st" style="text-align:right;margin-top:3px">${fm(investAfschrijving(i,S.year+'-01-01',S.year+'-12-31'))} in ${S.year}</div></span></button>`).join('')}</div>`
+  :`<div class="empty card">Nog geen investeringen. Denk aan gereedschap, een ladder, een hogedrukreiniger, een telefoon of een bus boven de €450.</div>`);
+}
+function renderKlanten(){
+  const un=unsavedFromDocs();
+  $('#kSum').innerHTML=`${S.klant.length} ${S.klant.length===1?'klant':'klanten'}`+(un.length?` · <button class="linkb" id="importK">${un.length} uit facturen overnemen</button>`:'');
+  let l=[...S.klant].sort((a,b)=>a.naam.localeCompare(b.naam,'nl'));if(kQ)l=l.filter(k=>(k.naam+' '+(k.plaats||'')+' '+(k.mail||'')).toLowerCase().includes(kQ));
+  $('#kList').innerHTML=l.length?`<div class="card list">${l.map(k=>{const st=klantStats(k);return `<button class="krow" data-klant="${k.id}"><span class="avatar">${esc(initials(k.naam))}</span><span class="main"><div class="t">${esc(k.naam)}</div><div class="s">${esc([k.plaats,k.tel||k.mail].filter(Boolean).join(' · ')||'Geen adres ingevuld')}</div></span><span style="text-align:right"><div style="font-weight:600">${fm(st.omzet)}</div><div class="st ${st.open?'open':''}" style="font-size:.85rem;color:${st.open?'var(--coral)':'var(--soft)'}">${st.open?fm(st.open)+' open':st.n+' facturen'}</div></span></button>`}).join('')}</div>`:`<div class="empty card">${S.klant.length?'Geen klant gevonden.':'Nog geen klanten opgeslagen. Sla een klant op en kies hem daarna met één tik bij een factuur of offerte.'}</div>`;
+}
+function openKlant(k,back){
+  const edit=!!k;k=k||{naam:'',adres:'',plaats:'',mail:'',tel:'',contact:'',kvk:'',notitie:''};
+  openSheet(edit?'Klant wijzigen':'Nieuwe klant',`<form id="kF" autocomplete="off"><div class="grid2">
+    <label class="f full">Naam of bedrijf<input name="naam" required value="${esc(k.naam)}" placeholder="Villa de Duinen B.V."></label>
+    <label class="f full">Contactpersoon<input name="contact" value="${esc(k.contact)}" placeholder="optioneel"></label>
+    <label class="f full">Adres<input name="adres" value="${esc(k.adres)}" placeholder="Straat en huisnummer"></label>
+    <label class="f full">Postcode en plaats<input name="plaats" value="${esc(k.plaats)}" placeholder="2201 AB Noordwijk"></label>
+    <label class="f">E-mail<input name="mail" type="email" value="${esc(k.mail)}"></label>
+    <label class="f">Telefoon<input name="tel" type="tel" value="${esc(k.tel)}"></label>
+    <label class="f full">KvK-nummer (zakelijk)<input name="kvk" value="${esc(k.kvk)}" placeholder="optioneel"></label>
+    <label class="f full">Btw-id van de klant<input name="btwnr" value="${esc(k.btwnr||'')}" placeholder="nodig bij verlegde btw"></label>
+    <label class="check full" style="margin-top:0"><input type="checkbox" name="verlegd" ${k.verlegd?'checked':''}>Btw altijd verleggen naar deze klant</label>
+    <label class="f full">Notitie<textarea name="notitie" rows="2" placeholder="Bijv. elke 6 weken ramen, sleutel bij buren">${esc(k.notitie)}</textarea></label>
+  </div><div class="btnrow"><button class="btn" type="submit">${edit?'Wijziging opslaan':'Klant opslaan'}</button>${edit?'<button class="btn warn" type="button" id="kDel">Verwijderen</button>':''}</div>
+  ${edit?'<p class="fine">Wijzigingen gelden voor nieuwe facturen. Verstuurde facturen blijven zoals ze zijn.</p>':''}</form>`,()=>{
+    const F=$('#kF');F.onsubmit=async e=>{e.preventDefault();const o={...k,id:k.id||newId(),created:k.created||new Date().toISOString()};for(const f of ['naam','contact','adres','plaats','mail','tel','kvk','btwnr','notitie'])o[f]=F.elements[f].value.trim();o.verlegd=F.elements.verlegd.checked;
+      if(!edit&&S.klant.some(x=>sameName(x.naam,o.naam))){toast('Deze klant bestaat al');return}
+      if(await safe(store.put('klant',o),edit?'Klant bijgewerkt':'Klant opgeslagen')){if(back)back(o);else openKlantDetail(o)}};
+    const d=$('#kDel');if(d)d.onclick=async()=>{if(!confirm(`${k.naam} verwijderen? Facturen blijven bestaan.`))return;if(await safe(store.del('klant',k.id),'Klant verwijderd'))closeSheet()};
+  });
+}
+function openKlantDetail(k){const st=klantStats(k);const docs=[...S.inv,...S.off].filter(d=>sameName(d.klant.naam,k.naam)).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,6);
+  openSheet(k.naam,`<div class="detail">
+    ${k.contact?`<div class="r"><span>Contact</span><span>${esc(k.contact)}</span></div>`:''}
+    ${k.adres||k.plaats?`<div class="r"><span>Adres</span><span style="text-align:right">${esc(k.adres)}<br>${esc(k.plaats)}</span></div>`:''}
+    ${k.tel?`<div class="r"><span>Telefoon</span><a href="tel:${esc(k.tel.replace(/\s/g,''))}" style="color:var(--ink)">${esc(k.tel)}</a></div>`:''}
+    ${k.mail?`<div class="r"><span>E-mail</span><a href="mailto:${esc(k.mail)}" style="color:var(--ink)">${esc(k.mail)}</a></div>`:''}
+    <div class="r"><span>Gefactureerd</span><strong>${fm(st.omzet)}</strong></div>
+    <div class="r"><span>Nog open</span><span style="color:${st.open?'var(--coral)':'var(--ink)'}">${fm(st.open)}</span></div>
+    ${k.notitie?`<div class="fine" style="margin-top:8px">${esc(k.notitie)}</div>`:''}</div>
+  <div class="btnrow"><button class="btn" id="kInv">Nieuwe factuur</button><button class="btn alt" id="kOff">Nieuwe offerte</button><button class="btn alt" id="kEdit">Wijzigen</button></div>
+  ${docs.length?`<div class="label">Laatste documenten</div><div class="card list">${docs.map(d=>{const isInv=S.inv.includes(d);return `<button class="doc" data-${isInv?'inv':'off'}="${d.id}"><span><div class="t">${isInv?'Factuur':'Offerte'} ${esc(d.nummer||'(concept)')}</div><div class="s">${nlDate(d.datum)}</div></span><span class="amt">${fm(docTotals(d).inc)}</span></button>`}).join('')}</div>`:''}`,()=>{
+    $('#kInv').onclick=()=>openEditor('inv',null,k);$('#kOff').onclick=()=>openEditor('off',null,k);$('#kEdit').onclick=()=>openKlant(k);
+  })}
+
+/* ---------------- sheet ---------------- */
+const sheet=$('#sheet');
+function openSheet(title,html,after){$('#shTitle').textContent=title;$('#shBody').innerHTML=html;if(!sheet.open)sheet.showModal();$('#shBody').scrollTop=0;sheet.scrollTop=0;after&&after()}
+function closeSheet(){if(!sheet.open||sheet.classList.contains('closing'))return;
+  if(calm()){sheet.close();return}sheet.classList.add('closing');setTimeout(()=>{sheet.classList.remove('closing');sheet.close()},230)}
+sheet.addEventListener('cancel',e=>{e.preventDefault();closeSheet()});
+$('#shClose').onclick=closeSheet;
+sheet.addEventListener('click',e=>{if(e.target===sheet)closeSheet()});
+
+/* ---------- boeking (inkomst / uitgave) ---------- */
+function openTx(t,type){
+  const edit=!!t;t=t||{type:type||'in',datum:today(),btw:21,betaal:'bank',status:'betaald'};let kind=t.type,bon=t.bon||null;
+  const cats=k=>CATS(k).map(c=>`<option ${c===t.cat?'selected':''}>${c}</option>`).join('');
+  openSheet(edit?'Transactie wijzigen':(kind==='in'?'Nieuwe inkomst':'Nieuwe uitgave'),`
+  <form id="txF" autocomplete="off">
+    ${t.factuurId?'':`<div class="seg"><button type="button" data-k="in" aria-pressed="${kind==='in'}">Inkomst</button><button type="button" data-k="uit" aria-pressed="${kind==='uit'}">Uitgave</button></div>`}
+    <div class="grid2">
+      <label class="f full">Omschrijving<input name="oms" required value="${esc(t.oms||'')}" placeholder="${kind==='in'?'Glasbewassing fam. de Vries':'Zeep en wisser bij Action'}"></label>
+      <label class="f">Bedrag incl. btw<input name="bedrag" inputmode="decimal" required value="${t.bedrag??''}" placeholder="0,00"></label>
+      <label class="f">Datum<input type="date" name="datum" required value="${t.datum}"></label>
+      <label class="f">Categorie<select name="cat">${cats(kind)}</select></label>
+      <label class="f">Btw<select name="btw">${[21,9,0].map(v=>`<option value="${v}" ${+t.btw===v?'selected':''}>${v}%</option>`).join('')}</select></label>
+      <label class="f" id="betaalL">${kind==='in'?'Ontvangen via':'Betaald via'}<select name="betaal">${[['bank','Bank'],['contant','Contant'],['tikkie','Tikkie']].map(([v,l])=>`<option value="${v}" ${t.betaal===v?'selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="f" id="statL" ${kind==='uit'?'':'hidden'}>Status<select name="status"><option value="betaald" ${t.status!=='open'?'selected':''}>Betaald</option><option value="open" ${t.status==='open'?'selected':''}>Nog te betalen</option></select></label>
+    </div>
+    <div id="bonWrap" style="margin-top:12px" ${kind==='uit'?'':'hidden'}></div>
+    <div class="btnrow"><button class="btn" type="submit">${edit?'Wijziging opslaan':'Opslaan'}</button>${edit?'<button class="btn warn" type="button" id="txDel">Verwijderen</button>':''}</div>
+    <p class="fine">${kind==='in'?'Contant geld is ook omzet. Boek het altijd, dan klopt je aangifte.':'Bewaar bonnetjes 7 jaar. Een foto hier telt.'}</p>
+  </form>`,()=>{
+    const F=$('#txF');
+    const drawBon=()=>{const w=$('#bonWrap');if(!me&&!bon){w.innerHTML=`<p class="fine">Log in om bonnetjes te uploaden.</p>`;return}
+      w.innerHTML=`<div class="bon">${bon?`<a id="bonA" target="_blank" rel="noopener"><img id="bonImg" alt="Bonnetje"></a>`:''}<div class="bi">${bon?'Bonnetje gekoppeld':'Nog geen bonnetje'}</div>${assets?`<label class="outline" style="cursor:pointer">${bon?'Vervangen':'Foto of pdf'}<input type="file" accept="image/*,application/pdf" hidden id="bonIn"></label>`:''}${bon?'<button type="button" class="outline" id="bonRm">Ontkoppelen</button>':''}</div>`;
+      const bi=$('#bonIn');if(bi)bi.onchange=async e=>{const file=e.target.files[0];if(!file)return;$('.bon .bi').textContent='Uploaden…';try{const blob=file.type.startsWith('image/')?await shrink(file):file;const r=await assets.upload(blob,blob.type?undefined:{type:'application/pdf'});bon=r.id;drawBon();toast('Bonnetje gekoppeld')}catch(err){$('.bon .bi').textContent='Uploaden lukte niet'}};
+      const rm=$('#bonRm');if(rm)rm.onclick=()=>{bon=null;drawBon()};
+      if(bon)bonUrl(bon).then(u=>{const a=$('#bonA'),i=$('#bonImg');if(!a)return;if(u){a.href=u;if(!/\.pdf$/i.test(bon))i.src=u;else{i.replaceWith(Object.assign(document.createElement('span'),{textContent:'PDF'}))}}else{a.removeAttribute('href');$('.bon .bi').textContent='Bonnetje uit de oude versie, niet meer te openen'}})};
+    drawBon();
+    $$('#txF .seg button').forEach(b=>b.onclick=()=>{kind=b.dataset.k;$$('#txF .seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));F.elements.cat.innerHTML=cats(kind);$('#betaalL').firstChild.textContent=kind==='in'?'Ontvangen via':'Betaald via';$('#statL').hidden=kind!=='uit';$('#bonWrap').hidden=kind!=='uit';$('#shTitle').textContent=edit?'Transactie wijzigen':(kind==='in'?'Nieuwe inkomst':'Nieuwe uitgave')});
+    F.onsubmit=async e=>{e.preventDefault();const b=num(F.elements.bedrag.value);if(!(b>0)){toast('Vul een bedrag groter dan 0 in');return}
+      const o={...t,id:t.id||newId(),type:kind,oms:F.elements.oms.value.trim(),bedrag:r2(b),datum:F.elements.datum.value,cat:F.elements.cat.value,btw:PRIVE.includes(F.elements.cat.value)?0:+F.elements.btw.value,betaal:F.elements.betaal.value,created:t.created||new Date().toISOString()};
+      if(kind==='uit'){o.status=F.elements.status.value;o.bon=bon||null}else{delete o.status;delete o.bon}
+      if(await safe(store.put('tx',o),edit?'Wijziging opgeslagen':'Opgeslagen'))closeSheet()};
+    const d=$('#txDel');if(d)d.onclick=async()=>{if(!confirm(`“${t.oms}” verwijderen?`))return;
+      if(t.factuurId){const f=S.inv.find(x=>x.id===t.factuurId);if(f)await safe(store.put('inv',{...f,status:'verstuurd',betaaldOp:null}))}
+      if(await safe(store.del('tx',t.id),'Verwijderd'))closeSheet()};
+  });
+}
+async function shrink(file){try{const img=await createImageBitmap(file);const m=1600,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',.82))}catch(e){return file}}
+
+/* ---------- factuur / offerte editor ---------- */
+function lineHtml(l){return `<div class="line"><label class="f oms">Omschrijving<input data-k="oms" value="${esc(l.oms||'')}" placeholder="Glasbewassing binnen en buiten"></label>
+  <label class="f">Aantal<input data-k="aantal" inputmode="decimal" value="${l.aantal??1}"></label>
+  <label class="f">Prijs excl.<input data-k="prijs" inputmode="decimal" value="${l.prijs??''}" placeholder="0,00"></label>
+  <label class="f">Btw<select data-k="btw">${[21,9,0].map(v=>`<option value="${v}" ${+(l.btw??21)===v?'selected':''}>${v}%</option>`).join('')}</select></label>
+  <button type="button" class="del" aria-label="Regel verwijderen">×</button></div>`}
+function openEditor(kind,d,preKlant){
+  const isInv=kind==='inv',edit=!!d;
+  d=d||{datum:today(),termijn:14,klant:preKlant?{naam:preKlant.naam,adres:preKlant.adres||'',plaats:preKlant.plaats||'',mail:preKlant.mail||''}:{naam:'',adres:'',plaats:'',mail:''},regels:[{oms:'',aantal:1,prijs:'',btw:21}],status:'concept'};
+  const klanten=[...S.klant].sort((a,b)=>a.naam.localeCompare(b.naam,'nl'));const cur=klanten.find(k=>sameName(k.naam,d.klant.naam));
+  openSheet(`${edit?'':'Nieuwe '}${isInv?'factuur':'offerte'}${edit&&d.nummer?' '+d.nummer:''}`,`
+  <form id="edF" autocomplete="off">
+    <div class="grid2">
+      <div class="full kpick"><label class="f">Opgeslagen klant<select name="kpick"><option value="">${klanten.length?'Kies een klant…':'Nog geen klanten opgeslagen'}</option>${klanten.map(k=>`<option value="${k.id}" ${cur&&cur.id===k.id?'selected':''}>${esc(k.naam)}</option>`).join('')}<option value="__new">+ Nieuwe klant</option></select></label></div>
+      <label class="f full">Naam of bedrijf<input name="knaam" required value="${esc(d.klant.naam)}" placeholder="Naam of bedrijf"></label>
+      <label class="f full">Adres<input name="kadres" value="${esc(d.klant.adres)}" placeholder="Straat en huisnummer"></label>
+      <label class="f">Postcode en plaats<input name="kplaats" value="${esc(d.klant.plaats)}" placeholder="2201 AB Noordwijk"></label>
+      <label class="f">E-mail<input name="kmail" type="email" value="${esc(d.klant.mail)}" placeholder="optioneel"></label>
+      <label class="f">${isInv?'Factuurdatum':'Datum'}<input type="date" name="datum" required value="${d.datum}"></label>
+      <label class="f">${isInv?'Betalen binnen':'Geldig'}<select name="termijn">${[7,14,30].map(v=>`<option value="${v}" ${+d.termijn===v?'selected':''}>${v} dagen</option>`).join('')}</select></label>
+    </div>
+    <div class="label" style="margin-top:18px">Werkzaamheden</div>
+    <div class="lines" id="lines">${d.regels.map(lineHtml).join('')}</div>
+    <div class="btnrow" style="margin-top:10px"><button type="button" class="btn alt" id="addL">Regel toevoegen</button></div>
+    <div class="totals" id="tots"></div>
+    <label class="check"><input type="checkbox" name="verlegd" ${(d.verlegd||(!d.id&&cur&&cur.verlegd))?'checked':''}>Btw verlegd naar de klant (0% btw, klant draagt af)</label>
+    <label class="check" id="saveKL" ${cur?'hidden':''}><input type="checkbox" name="saveK" checked>Klant opslaan voor de volgende keer</label>
+    <label class="f" style="margin-top:12px">Opmerking op ${isInv?'de factuur':'de offerte'}<textarea name="notitie" rows="2" placeholder="optioneel">${esc(d.notitie||'')}</textarea></label>
+    <div class="btnrow"><button class="btn" type="submit">Concept opslaan</button>${edit?`<button class="btn warn" type="button" id="edDel">Verwijderen</button>`:''}</div>
+    <p class="fine">${isInv?'Het nummer krijgt de factuur pas bij versturen, zo blijft je nummering doorlopend.':'Na acceptatie zet je de offerte met één tik om in een factuur.'}</p>
+  </form>`,()=>{
+    const F=$('#edF');
+    const read=()=>$$('#lines .line').map(r=>({oms:r.querySelector('[data-k="oms"]').value.trim(),aantal:num(r.querySelector('[data-k="aantal"]').value),prijs:num(r.querySelector('[data-k="prijs"]').value),btw:+r.querySelector('[data-k="btw"]').value}));
+    const tot=()=>{const t=docTotals({regels:read(),kor:kor()});$('#tots').innerHTML=`<div><span>Subtotaal</span><span>${fm(t.ex)}</span></div><div><span>Btw</span><span>${kor()?'KOR, geen btw':fm(t.btw)}</span></div><div class="g"><span>Totaal</span><span>${fm(t.inc)}</span></div>`};
+    const wire=()=>$$('#lines .del').forEach(b=>b.onclick=()=>{if($$('#lines .line').length>1){b.closest('.line').remove();tot()}});
+    $('#lines').oninput=tot;$('#lines').onchange=tot;wire();tot();
+    $('#addL').onclick=()=>{$('#lines').insertAdjacentHTML('beforeend',lineHtml({}));wire();tot()};
+    const syncSave=()=>{$('#saveKL').hidden=!F.elements.knaam.value.trim()||S.klant.some(k=>sameName(k.naam,F.elements.knaam.value))};
+    F.elements.kpick.onchange=()=>{const v=F.elements.kpick.value;
+      if(v==='__new'){F.elements.kpick.value='';openKlant(null,k=>openEditor(kind,{...d,klant:{naam:k.naam,adres:k.adres,plaats:k.plaats,mail:k.mail},regels:read().length?read():d.regels}));return}
+      const k=klanten.find(x=>x.id===v);if(k){F.elements.knaam.value=k.naam;F.elements.kadres.value=k.adres||'';F.elements.kplaats.value=k.plaats||'';F.elements.kmail.value=k.mail||'';F.elements.verlegd.checked=!!k.verlegd}syncSave()};
+    F.elements.knaam.oninput=()=>{const k=klanten.find(x=>sameName(x.naam,F.elements.knaam.value));F.elements.kpick.value=k?k.id:'';syncSave()};syncSave();
+    F.onsubmit=async e=>{e.preventDefault();const regels=read().filter(l=>l.oms&&l.prijs>0);if(!regels.length){toast('Vul minstens één regel met omschrijving en prijs in');return}
+      const o={...d,id:d.id||newId(),datum:F.elements.datum.value,termijn:+F.elements.termijn.value,klant:{naam:F.elements.knaam.value.trim(),adres:F.elements.kadres.value.trim(),plaats:F.elements.kplaats.value.trim(),mail:F.elements.kmail.value.trim(),btwnr:(klanten.find(x=>sameName(x.naam,F.elements.knaam.value))||{}).btwnr||d.klant.btwnr||''},regels:F.elements.verlegd.checked?regels.map(l=>({...l,btw:0})):regels,verlegd:F.elements.verlegd.checked,notitie:F.elements.notitie.value.trim(),kor:kor()||F.elements.verlegd.checked,status:d.status||'concept',created:d.created||new Date().toISOString()};
+      o.verval=addDays(o.datum,o.termijn);
+      if(F.elements.saveK&&F.elements.saveK.checked&&!$('#saveKL').hidden&&!S.klant.some(k=>sameName(k.naam,o.klant.naam)))await safe(store.put('klant',{id:newId(),naam:o.klant.naam,adres:o.klant.adres,plaats:o.klant.plaats,mail:o.klant.mail,tel:'',contact:'',kvk:'',notitie:'',created:new Date().toISOString()}));
+      if(await safe(store.put(isInv?'inv':'off',o),'Concept opgeslagen')){S.year=yearOf(o.datum);isInv?openInvDetail(o):openOffDetail(o)}};
+    const del=$('#edDel');if(del)del.onclick=async()=>{if(!confirm('Dit concept verwijderen?'))return;if(await safe(store.del(isInv?'inv':'off',d.id),'Verwijderd'))closeSheet()};
+  });
+}
+function docDetailHtml(d,isInv){const t=docTotals(d);return `<div class="detail">
+  <div class="r"><span>Klant</span><strong>${esc(d.klant.naam)}</strong></div>
+  <div class="r"><span>Nummer</span><span>${esc(d.nummer||'krijgt nummer bij versturen')}</span></div>
+  <div class="r"><span>Datum</span><span>${nlDate(d.datum)}</span></div>
+  <div class="r"><span>${isInv?'Vervaldatum':'Geldig tot'}</span><span>${nlDate(d.verval)}</span></div>
+  ${d.regels.map(l=>`<div class="r"><span>${esc(l.oms)} (${String(l.aantal).replace('.',',')}×)</span><span>${fm(l.aantal*l.prijs)}</span></div>`).join('')}
+  <div class="r"><span>Btw</span><span>${d.verlegd?'verlegd':(d.kor?'geen (KOR)':fm(t.btw))}</span></div>
+  <div class="r" style="font-weight:700;border-top:1px solid var(--line);margin-top:6px;padding-top:8px"><span style="color:var(--ink)">Totaal</span><span>${fm(t.inc)}</span></div></div>`}
+const IC={mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',wa:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-4A8 8 0 1 1 20 12z"/><path d="M9 9.5c.3 2 2.5 4.2 4.5 4.5l1-1 1.8.8c-.2 1-1.1 1.7-2.1 1.6-3.4-.4-6.2-3.2-6.6-6.6-.1-1 .6-1.9 1.6-2.1l.8 1.8z"/></svg>',hand:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',warn:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22zm1 15h-2v-2h2zm0-4h-2V9h2z"/></svg>'};
+const VIA={gmail:'Gmail',email:'e-mail',whatsapp:'WhatsApp',zelf:'post of persoonlijk afgegeven'};
+function klantTel(d){const k=S.klant.find(x=>sameName(x.naam,d.klant.naam));let t=(k&&k.tel||'').replace(/\D/g,'');if(t.startsWith('00'))t=t.slice(2);else if(t.startsWith('0'))t='31'+t.slice(1);return t}
+function waText(d,soort){const s=S.settings,t=docTotals(d);return soort==='Factuur'?`Beste ${d.klant.naam}, hierbij factuur ${d.nummer} van ${fm(t.inc)}. Graag betalen voor ${nlDate(d.verval)}${s.iban?' op '+s.iban:''} o.v.v. ${d.nummer}. De pdf stuur ik hierbij mee. Groet, ${s.naam}`:`Beste ${d.klant.naam}, hierbij offerte ${d.nummer} van ${fm(t.inc)}, geldig tot ${nlDate(d.verval)}. Groet, ${s.naam}`}
+function waLink(d,soort){const tel=klantTel(d);return `https://wa.me/${tel}?text=${encodeURIComponent(waText(d,soort))}`}
+function openInvDetail(f,pending){
+  const[c,lab]=stLabel(f);const ch=(who)=>`<div class="chan"${mcp?' style="grid-template-columns:1fr 1fr"':''}>
+      ${mcp?`<button data-ch="gmail">${IC.mail}Gmail met pdf</button>`:''}
+      ${f.klant.mail?`<button data-ch="email">${IC.mail}E-mail</button>`:`<button data-ch="email" title="Geen e-mailadres">${IC.mail}E-mail</button>`}
+      <button data-ch="whatsapp">${IC.wa}WhatsApp</button>
+      <button data-ch="zelf">${IC.hand}${who}</button></div>`;
+  let top='';
+  if(f.status==='definitief')top=`<div class="banner amber">${IC.warn}<span><b>Nog niet verstuurd.</b> De klant heeft deze factuur nog niet. Kies hoe je hem verstuurt.</span></div>`;
+  if(f.status==='verstuurd'&&daysLate(f)>0){const n=(f.herinneringen||[]).length;top=`<div class="banner amber">${IC.warn}<span><b>${daysLate(f)} dagen te laat.</b> ${n?`${n} ${n===1?'herinnering':'herinneringen'} gestuurd.`:'Nog geen herinnering gestuurd.'}</span></div>`}
+  else if(f.status==='verstuurd'||f.status==='betaald'){const v=f.verzonden;top=`<div class="banner ok">${IC.hand}<span>${v?`Verstuurd op <b>${nlDate(v.op)}</b> via ${VIA[v.via]||v.via}`:'Verstuurd'}${f.status==='betaald'?` · betaald op ${nlDate(f.betaaldOp)}`:''}</span></div>`}
+  openSheet(`Factuur ${f.nummer||'(concept)'}`,`${top}${docDetailHtml(f,true)}
+  ${f.status==='concept'?`<div class="btnrow"><button class="btn" id="dFinal">Factuur definitief maken</button><button class="btn alt" id="dPrev">Voorbeeld bekijken</button><button class="btn alt" id="dEdit">Wijzigen</button></div><p class="fine">Definitief maken geeft de factuur een nummer. Daarna kies je hoe je hem verstuurt.</p>`:''}
+  ${f.status==='definitief'?`${ch('Al verstuurd')}<div id="confirmBox"></div><div class="btnrow"><button class="btn alt" id="dPrev">Voorbeeld bekijken</button><button class="btn alt" id="dPdf">PDF downloaden</button></div><p class="fine">${mcp?'Met Gmail gaat de pdf automatisch mee als bijlage. ':''}Bij e-mail en WhatsApp wordt eerst de pdf gedownload. Voeg die dan zelf toe.</p>`:''}
+  ${f.status==='verstuurd'&&daysLate(f)>0?`<div class="btnrow"><button class="btn" id="dRem">Herinnering sturen</button></div>`:''}
+  ${f.status==='verstuurd'?`<div class="btnrow"><button class="btn${daysLate(f)>0?' alt':''}" data-pay="bank">Betaald via bank</button><button class="btn alt" data-pay="contant">Contant betaald</button></div><div class="label">Herinnering sturen</div>${ch('Opnieuw gestuurd')}<div id="confirmBox"></div><div class="btnrow"><button class="btn alt" id="dPrev">Voorbeeld bekijken</button><button class="btn alt" id="dPdf">PDF downloaden</button></div>`:''}
+  ${f.status==='betaald'?`<div class="btnrow"><button class="btn alt" id="dPrev">Voorbeeld bekijken</button><button class="btn alt" id="dPdf">PDF downloaden</button></div>`:''}
+  ${f.status!=='concept'?'<p class="fine">Een definitieve factuur wijzig of verwijder je niet. Klopt er iets niet, maak dan een creditfactuur met een negatief bedrag.</p>':''}`,()=>{
+    const fin=$('#dFinal');if(fin)fin.onclick=async()=>{const o={...f,nummer:nextNr(yearOf(f.datum)),status:'definitief'};if(await safe(store.put('inv',o),`Factuur ${o.nummer} is definitief`))openInvDetail(o)};
+    const e=$('#dEdit');if(e)e.onclick=()=>openEditor('inv',f);
+    const pv=$('#dPrev');if(pv)pv.onclick=()=>openPreview(f,'Factuur',()=>openInvDetail(f));
+    const p=$('#dPdf');if(p)p.onclick=()=>makePdf(f,'Factuur');
+    const rm=$('#dRem');if(rm)rm.onclick=()=>openReminder(f);
+    const markSent=async via=>{const o={...f,status:f.status==='definitief'?'verstuurd':f.status,verzonden:f.status==='definitief'?{op:today(),via}:f.verzonden,herinneringen:f.status==='verstuurd'?[...(f.herinneringen||[]),{op:today(),via}]:(f.herinneringen||[])};
+      if(await safe(store.put('inv',o),f.status==='definitief'?`Factuur ${f.nummer} staat op verstuurd`:'Herinnering genoteerd')){if(f.status==='definitief')confetti();openInvDetail(o)}};
+    const ask=(via)=>{$('#confirmBox').innerHTML=`<div class="confirm"><p>Gelukt? Dan zet ik hem op ${f.status==='definitief'?'verstuurd':'herinnering verstuurd'}.</p><div class="btnrow" style="margin-top:0"><button class="btn" id="cYes">Ja, verstuurd</button><button class="btn alt" id="cNo">Nog niet</button></div></div>`;$('#cYes').onclick=()=>markSent(via);$('#cNo').onclick=()=>{$('#confirmBox').innerHTML=''}};
+    $$('#shBody [data-ch]').forEach(b=>b.onclick=async()=>{const via=b.dataset.ch;
+      if(via==='zelf'){markSent('zelf');return}
+      if(via==='gmail'){const s=S.settings,t=docTotals(f),her=f.status==='verstuurd';
+        const subject=`${her?'Herinnering: ':''}Factuur ${f.nummer} ${s.naam}`;
+        const body=her?reminderText(f,Math.min(3,(f.herinneringen||[]).length+1)):`Beste ${f.klant.naam},\n\nIn de bijlage vind je factuur ${f.nummer} van ${fm(t.inc)}. Graag betalen voor ${nlDate(f.verval)}${s.iban?' op '+s.iban:''} onder vermelding van ${f.nummer}.\n\nMet vriendelijke groet,\n${s.naam}`;
+        gmailFlow('#confirmBox',f,'Factuur',subject,body,markSent);return}
+      await makePdf(f,'Factuur');
+      if(via==='email'){if(!f.klant.mail){toast('Deze klant heeft geen e-mailadres');}else location.href=mailto(f,'Factuur')}
+      if(via==='whatsapp')window.open(waLink(f,'Factuur'),'_blank','noopener');
+      ask(via)});
+    $$('#shBody [data-pay]').forEach(b=>b.onclick=async()=>{const t=docTotals(f);const tx={id:newId(),type:'in',datum:today(),oms:`Factuur ${f.nummer} ${f.klant.naam}`,cat:'Overig',btw:f.regels[0]?.btw??21,betaal:b.dataset.pay,bedrag:t.inc,factuurId:f.id,created:new Date().toISOString()};
+      if(await safe(store.put('tx',tx))&&await safe(store.put('inv',{...f,status:'betaald',betaaldOp:today(),betaalTx:tx.id}),`Factuur ${f.nummer} staat op betaald`)&&(confetti(),true))openInvDetail({...f,status:'betaald',betaaldOp:today()})});
+  });
+}
+function previewHtml(f,soort){const s=S.settings,t=docTotals(f),F=soort==='Factuur';
+  const by={};if(!f.kor)f.regels.forEach(l=>{by[l.btw]=(by[l.btw]||0)+l.aantal*l.prijs*l.btw/100});
+  return `<div class="paper"><div class="strip"></div>
+  <div class="hd"><div class="biz">${esc(s.naam)}</div><div class="me">${[s.adres,s.plaats,s.tel,s.mail,s.web].filter(Boolean).map(esc).join('<br>')}</div></div>
+  <div class="two"><div><b>${F?'Factuur aan':'Offerte voor'}</b><br>${[f.klant.naam,f.klant.adres,f.klant.plaats].filter(Boolean).map(esc).join('<br>')}</div>
+  <table class="meta"><tr><td>${soort}nummer</td><td>${esc(f.nummer||'volgt bij definitief maken')}</td></tr><tr><td>${F?'Factuurdatum':'Datum'}</td><td>${nlDate(f.datum)}</td></tr><tr><td>${F?'Vervaldatum':'Geldig tot'}</td><td>${nlDate(f.verval)}</td></tr></table></div>
+  <h1>${soort}</h1>
+  <table class="items"><tr><th>Omschrijving</th><th>Aantal</th><th>Prijs</th>${f.kor?'':'<th>Btw</th>'}<th>Bedrag</th></tr>
+  ${f.regels.map(l=>`<tr><td>${esc(l.oms)}</td><td>${String(l.aantal).replace('.',',')}</td><td>${fm(l.prijs)}</td>${f.kor?'':`<td>${l.btw}%</td>`}<td>${fm(l.aantal*l.prijs)}</td></tr>`).join('')}</table>
+  <div class="sum"><div><span>Subtotaal</span><span>${fm(t.ex)}</span></div>${f.kor?`<div><span>Btw</span><span>${f.verlegd?'verlegd':'vrijgesteld'}</span></div>`:Object.keys(by).sort().map(r=>`<div><span>Btw ${r}%</span><span>${fm(by[r])}</span></div>`).join('')}<div class="g"><span>Totaal</span><span>${fm(t.inc)}</span></div></div>
+  ${f.notitie?`<div class="pay">${esc(f.notitie)}</div>`:''}
+  <div class="pay">${F?`Graag ${fm(t.inc)} voor ${nlDate(f.verval)} overmaken${s.iban?' op '+esc(s.iban):''} t.n.v. ${esc(s.naam)}, onder vermelding van ${esc(f.nummer||'het factuurnummer')}.`:`Deze offerte is geldig tot ${nlDate(f.verval)}. Akkoord? Laat het ons weten, dan plannen we de werkzaamheden in.`}${f.verlegd?`<br>Btw verlegd naar de opdrachtgever${f.klant.btwnr?' (btw-id '+esc(f.klant.btwnr)+')':''}.`:(f.kor?'<br>Vrijgesteld van btw op grond van de kleineondernemersregeling.':'')}</div>
+  ${(F&&S.settings.qr!=='nee'&&epcPayload(f))?`<div class="qr"><img src="${qrDataUrl(epcPayload(f),320)||''}" alt="Betaal-QR"><span>Scan met je bankapp<br>om ${fm(t.inc)} te betalen</span></div>`:''}
+  <div class="ft">${[s.kvk&&('KvK '+esc(s.kvk)),s.btwnr&&('Btw-id '+esc(s.btwnr)),s.iban&&('IBAN '+esc(s.iban))].filter(Boolean).join('&nbsp;&nbsp;&nbsp;&nbsp;')}</div></div>`}
+function openPreview(f,soort,back){openSheet(`Voorbeeld ${soort.toLowerCase()}`,`<div class="paper-wrap" id="pw">${previewHtml(f,soort)}</div>${(!S.settings.kvk||!S.settings.iban)?'<p class="fine">Je KvK-nummer of IBAN ontbreekt nog. Vul ze in via het menu linksboven.</p>':''}<div class="btnrow"><button class="btn alt" id="pBack">Terug</button><button class="btn" id="pPdf">PDF downloaden</button></div>`,()=>{
+    const fit=()=>{const w=$('#pw'),pp=w.querySelector('.paper');const sc=(w.clientWidth-24)/794;pp.style.transform=`scale(${sc})`;w.style.height=(1123*sc+24)+'px'};fit();requestAnimationFrame(fit);
+    $('#pBack').onclick=back;$('#pPdf').onclick=()=>makePdf(f,soort)})}
+function openOffDetail(o){
+  const lab={concept:'Concept',verstuurd:'Verstuurd',geaccepteerd:'Geaccepteerd',afgewezen:'Afgewezen',gefactureerd:'Gefactureerd'}[o.status];
+  openSheet(`Offerte ${o.nummer||'(concept)'}`,`${docDetailHtml(o,false)}<p class="fine">Status: <strong>${lab}</strong></p>
+  <div class="btnrow">
+    ${o.status==='concept'?`<button class="btn" id="oSend">Versturen</button><button class="btn alt" id="oEdit">Wijzigen</button>`:''}
+    ${o.status==='verstuurd'?`<button class="btn" data-st="geaccepteerd">Geaccepteerd</button><button class="btn warn" data-st="afgewezen">Afgewezen</button>`:''}
+    ${o.status==='geaccepteerd'?`<button class="btn" id="oInv">Omzetten naar factuur</button>`:''}
+    <button class="btn alt" id="oPrev">Voorbeeld bekijken</button>
+    ${o.status!=='concept'?`<button class="btn alt" id="oPdf">PDF downloaden</button>`:''}
+  </div>`,()=>{
+    $('#oPrev').onclick=()=>openPreview(o,'Offerte',()=>openOffDetail(o));
+    const s=$('#oSend');if(s)s.onclick=async()=>{const n={...o,nummer:nextOffNr(yearOf(o.datum)),status:'verstuurd'};if(await safe(store.put('off',n),`Offerte ${n.nummer} verstuurd`)){await makePdf(n,'Offerte');if(n.klant.mail)location.href=mailto(n,'Offerte');openOffDetail(n)}};
+    const e=$('#oEdit');if(e)e.onclick=()=>openEditor('off',o);
+    const p=$('#oPdf');if(p)p.onclick=()=>makePdf(o,'Offerte');
+    $$('#shBody [data-st]').forEach(b=>b.onclick=async()=>{const n={...o,status:b.dataset.st};if(await safe(store.put('off',n),b.dataset.st==='geaccepteerd'?'Offerte geaccepteerd':'Offerte afgewezen'))openOffDetail(n)});
+    const i=$('#oInv');if(i)i.onclick=async()=>{const f={id:newId(),datum:today(),termijn:14,verval:addDays(today(),14),klant:{...o.klant},regels:o.regels.map(l=>({...l})),notitie:`Volgens offerte ${o.nummer}`,kor:kor(),status:'concept',offerteId:o.id,created:new Date().toISOString()};
+      if(await safe(store.put('inv',f))&&await safe(store.put('off',{...o,status:'gefactureerd',factuurId:f.id}),'Conceptfactuur gemaakt')){go('facturen');openInvDetail(f)}};
+  });
+}
+function mailto(d,soort){const s=S.settings,t=docTotals(d);const body=soort==='Factuur'?`Beste ${d.klant.naam},\n\nIn de bijlage vind je factuur ${d.nummer} van ${fm(t.inc)}. Graag betalen voor ${nlDate(d.verval)}${s.iban?' op '+s.iban:''} onder vermelding van ${d.nummer}.\n\nMet vriendelijke groet,\n${s.naam}`:`Beste ${d.klant.naam},\n\nIn de bijlage vind je offerte ${d.nummer} van ${fm(t.inc)}, geldig tot ${nlDate(d.verval)}.\n\nMet vriendelijke groet,\n${s.naam}`;
+  return `mailto:${encodeURIComponent(d.klant.mail)}?subject=${encodeURIComponent(soort+' '+d.nummer+' '+s.naam)}&body=${encodeURIComponent(body)}`}
+
+async function makePdf(f,soort,opts){
+  const J=window.jspdf&&window.jspdf.jsPDF,s=S.settings,t=docTotals(f);
+  if(!J){toast('PDF maken lukt nu niet. Herlaad de pagina.');return}
+  const doc=new J({unit:'mm',format:'a4'}),ink=[8,39,43],soft=[107,124,133],mint=[31,201,140];let y=24;
+  doc.setFillColor(...mint);doc.rect(0,0,210,4,'F');
+  doc.setTextColor(...ink);doc.setFont('helvetica','bold');doc.setFontSize(19);doc.text(s.naam||'',20,y);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(...soft);
+  [s.adres,s.plaats,s.tel,s.mail,s.web].filter(Boolean).forEach((l,i)=>doc.text(l,190,17+i*4.5,{align:'right'}));
+  y=50;doc.setTextColor(...ink);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text(soort==='Factuur'?'Factuur aan':'Offerte voor',20,y);doc.setFont('helvetica','normal');
+  [f.klant.naam,f.klant.adres,f.klant.plaats].filter(Boolean).forEach((l,i)=>doc.text(l,20,y+5+i*5));
+  [[soort+'nummer',f.nummer||''],[soort==='Factuur'?'Factuurdatum':'Datum',nlDate(f.datum)],[soort==='Factuur'?'Vervaldatum':'Geldig tot',nlDate(f.verval)]].forEach(([k,v],i)=>{doc.setTextColor(...soft);doc.text(k,125,y+i*5);doc.setTextColor(...ink);doc.text(v,190,y+i*5,{align:'right'})});
+  y=82;doc.setFontSize(22);doc.setFont('helvetica','bold');doc.text(soort,20,y);
+  y+=10;doc.setFontSize(9);doc.setTextColor(...soft);doc.text('Omschrijving',20,y);doc.text('Aantal',118,y,{align:'right'});doc.text('Prijs',145,y,{align:'right'});if(!f.kor)doc.text('Btw',160,y,{align:'right'});doc.text('Bedrag',190,y,{align:'right'});
+  doc.setDrawColor(...ink);doc.setLineWidth(.4);doc.line(20,y+2,190,y+2);y+=8;doc.setTextColor(...ink);doc.setFont('helvetica','normal');doc.setFontSize(10);
+  for(const l of f.regels){const ls=doc.splitTextToSize(l.oms,88);doc.text(ls,20,y);doc.text(String(l.aantal).replace('.',','),118,y,{align:'right'});doc.text(fm(l.prijs),145,y,{align:'right'});if(!f.kor)doc.text(l.btw+'%',160,y,{align:'right'});doc.text(fm(l.aantal*l.prijs),190,y,{align:'right'});y+=6*ls.length+1;if(y>245){doc.addPage();y=25}}
+  doc.setDrawColor(226,232,238);doc.line(118,y,190,y);y+=6;
+  const row=(k,v,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.text(k,118,y);doc.text(v,190,y,{align:'right'});y+=6};
+  row('Subtotaal',fm(t.ex));
+  if(f.kor)row('Btw',f.verlegd?'verlegd':'vrijgesteld');else{const by={};f.regels.forEach(l=>{by[l.btw]=(by[l.btw]||0)+l.aantal*l.prijs*l.btw/100});Object.keys(by).sort().forEach(r=>row(`Btw ${r}%`,fm(by[r])))}
+  doc.setFontSize(12);row('Totaal',fm(t.inc),true);doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(...soft);y+=6;
+  if(f.notitie){doc.text(doc.splitTextToSize(f.notitie,170),20,y);y+=8}
+  const pay=soort==='Factuur'?`Graag ${fm(t.inc)} voor ${nlDate(f.verval)} overmaken${s.iban?' op '+s.iban:''} t.n.v. ${s.naam}, onder vermelding van ${f.nummer}.`:`Deze offerte is geldig tot ${nlDate(f.verval)}. Akkoord? Laat het ons weten, dan plannen we de werkzaamheden in.`;
+  doc.text(doc.splitTextToSize(pay,170),20,y);y+=10;
+  if(f.verlegd){doc.text('Btw verlegd naar de opdrachtgever'+(f.klant.btwnr?' (btw-id '+f.klant.btwnr+')':'')+'.',20,y);y+=8}
+  if(f.kor&&!f.verlegd){doc.text('Vrijgesteld van btw op grond van de kleineondernemersregeling.',20,y);y+=8}
+  if(soort==='Factuur'&&s.qr!=='nee'){const pl=epcPayload(f),img=pl&&qrDataUrl(pl,340);
+    if(img){if(y>228){doc.addPage();y=30}doc.addImage(img,'PNG',20,y,30,30);
+      doc.text('Scan deze code met je bankapp',55,y+13);doc.text(`om ${fm(t.inc)} over te maken.`,55,y+18);y+=36}}
+  doc.text([s.kvk&&('KvK '+s.kvk),s.btwnr&&('Btw-id '+s.btwnr),s.iban&&('IBAN '+s.iban)].filter(Boolean).join('    '),105,287,{align:'center'});
+  const name=`${soort} ${f.nummer||'concept'} ${f.klant.naam}.pdf`.replace(/[\\/:*?"<>|]/g,'');
+  if(opts&&opts.blob)return{blob:doc.output('blob'),name};
+  if(!downloads){toast('Downloaden werkt in de gepubliceerde app');return}
+  try{await downloads.save({filename:name,data:doc.output('blob')})}catch(e){if(e.code!=='declined')toast('Downloaden lukte niet')}
+}
+
+/* ---------- Gmail via Claude-koppeling ---------- */
+let mcp=null;
+const blobB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=rej;r.readAsDataURL(b)});
+function gmailError(e){const c=e&&e.code;
+  if(c==='needs_reauth')return 'Gmail moet opnieuw gekoppeld worden: claude.ai → Instellingen → Connectors.';
+  if(c==='server_not_connected')return 'Gmail is niet gekoppeld. Voeg het toe via claude.ai → Instellingen → Connectors.';
+  if(c==='selection_required')return 'Je hebt meer dan één Gmail-koppeling. Kies er één in de melding van Claude.';
+  if(c==='not_in_manifest'||c==='not_granted'||c==='capability_disabled')return 'Je hebt de app geen toegang tot Gmail gegeven. Herlaad de app en sta Gmail toe.';
+  if(c==='blocked_by_policy'||c==='approval_required')return 'Gmail is voor jouw account geblokkeerd voor apps.';
+  if(c==='tool_error')return 'Gmail gaf een foutmelding: '+(e.message||'onbekend');
+  if(c==='server_unavailable'||c==='upstream_error')return 'Gmail reageerde niet. Kijk in je Gmail-concepten of hij er toch staat voordat je het opnieuw probeert.';
+  return 'Dat lukte niet ('+(c||'onbekend')+').'}
+async function gmailDraft(d,soort,subject,body){
+  if(!mcp)throw{code:'not_granted'};
+  const pdf=await makePdf(d,soort,{blob:true});if(!pdf)throw{code:'tool_error',message:'PDF maken lukte niet'};
+  const input={subject,body,attachments:[{content:await blobB64(pdf.blob),filename:pdf.name,mimeType:'application/pdf'}]};
+  if(d.klant.mail)input.to=[d.klant.mail];
+  const r=await mcp.callTool('Gmail','create_draft',input);
+  const p=r&&r.payload;const id=p&&typeof p==='object'?p.id:null;
+  if(!id)throw{code:'tool_error',message:'Gmail gaf geen concept terug'};
+  return id}
+function gmailFlow(box,d,soort,subject,body,onSent){
+  const el=$(box);el.innerHTML=`<div class="confirm"><p>Concept maken in Gmail…</p></div>`;
+  gmailDraft(d,soort,subject,body).then(id=>{
+    el.innerHTML=`<div class="confirm"><p>Het concept staat in je Gmail${d.klant.mail?` voor ${esc(d.klant.mail)}`:''}, met de pdf als bijlage.</p>
+      ${d.klant.mail?'<div class="btnrow" style="margin-top:0"><button class="btn" id="gSend">Nu versturen</button><button class="btn alt" id="gSelf">Ik verstuur hem zelf</button></div>':'<p class="fine" style="margin:0 0 10px">Deze klant heeft geen e-mailadres, vul de ontvanger in Gmail in.</p><div class="btnrow" style="margin-top:0"><button class="btn" id="gSelf">Verstuurd vanuit Gmail</button></div>'}</div>`;
+    const gs=$('#gSend');if(gs)gs.onclick=async()=>{gs.disabled=true;gs.textContent='Versturen…';
+      try{await mcp.callTool('Gmail','send_message',{draftId:id});toast('Verstuurd via Gmail');onSent('gmail')}
+      catch(e){el.innerHTML=`<div class="confirm"><p>${esc(gmailError(e))}</p><p class="fine" style="margin:0">Het concept staat nog in Gmail. Je kunt het daar zelf versturen.</p><div class="btnrow"><button class="btn alt" id="gSelf2">Ik heb hem zelf verstuurd</button></div></div>`;$('#gSelf2').onclick=()=>onSent('gmail')}};
+    $('#gSelf').onclick=()=>onSent('gmail');
+  }).catch(e=>{el.innerHTML=`<div class="confirm"><p>${esc(gmailError(e))}</p></div>`})}
+
+/* ---------- betaal-QR (SEPA / EPC069-12) ---------- */
+const ibanOk=v=>/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(String(v||'').replace(/\s/g,'').toUpperCase());
+function epcPayload(f){const s=S.settings,t=docTotals(f);
+  const iban=String(s.iban||'').replace(/\s/g,'').toUpperCase();
+  if(!ibanOk(iban)||t.inc<=0)return null;
+  const ref=`Factuur ${f.nummer||''}`.trim().slice(0,140);
+  return ['BCD','002','1','SCT','',(s.naam||'').slice(0,70),iban,'EUR'+t.inc.toFixed(2),'','',ref].join('\n')}
+function qrDataUrl(text,px){
+  if(typeof qrcode!=='function')return null;
+  try{const q=qrcode(0,'M');q.addData(text,'Byte');q.make();const n=q.getModuleCount(),cell=Math.max(2,Math.floor(px/(n+8))),pad=cell*4,size=n*cell+pad*2;
+    const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');
+    x.fillStyle='#fff';x.fillRect(0,0,size,size);x.fillStyle='#000';
+    for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(q.isDark(r,col))x.fillRect(pad+col*cell,pad+r*cell,cell,cell);
+    return c.toDataURL('image/png')}catch(e){return null}}
+
+/* ---------- investeringen en afschrijving ---------- */
+const INVEST_JAREN=[3,5,10];
+function investAfschrijving(it,from,to){ // lineair, per maand
+  const bedrag=num(it.bedrag),btwd=it.btw?bedrag-bedrag/(1+num(it.btw)/100):0;
+  const basis=Math.max(0,(bedrag-btwd)-num(it.rest));
+  const jaren=num(it.jaren)||5,perMaand=basis/(jaren*12);
+  const start=new Date(it.datum+'T12:00:00');
+  let tot=0;
+  for(let m=0;m<jaren*12;m++){const d=new Date(start.getFullYear(),start.getMonth()+m,15);const iso2=d.getFullYear()+'-'+pad(d.getMonth()+1);
+    const key=iso2+'-15';if(key>=from&&key<=to)tot+=perMaand}
+  return r2(tot)}
+function investBoekwaarde(it){const bedrag=num(it.bedrag),btwd=it.btw?bedrag-bedrag/(1+num(it.btw)/100):0;
+  const excl=bedrag-btwd;return r2(excl-investAfschrijving(it,'0000-00-00',today()))}
+function investBtw(it){return it.btw?r2(num(it.bedrag)-num(it.bedrag)/(1+num(it.btw)/100)):0}
+function openInvest(it){
+  const edit=!!it;it=it||{datum:today(),jaren:5,btw:21,rest:0};
+  openSheet(edit?'Investering wijzigen':'Nieuwe investering',`<form id="ivF" autocomplete="off"><div class="grid2">
+    <label class="f full">Wat heb je gekocht<input name="naam" required value="${esc(it.naam||'')}" placeholder="Bijv. hogedrukreiniger"></label>
+    <label class="f">Bedrag incl. btw<input name="bedrag" inputmode="decimal" required value="${it.bedrag??''}" placeholder="0,00"></label>
+    <label class="f">Aankoopdatum<input type="date" name="datum" required value="${it.datum}"></label>
+    <label class="f">Btw<select name="btw">${[21,9,0].map(v=>`<option value="${v}" ${+it.btw===v?'selected':''}>${v}%</option>`).join('')}</select></label>
+    <label class="f">Afschrijven over<select name="jaren">${INVEST_JAREN.map(v=>`<option value="${v}" ${+it.jaren===v?'selected':''}>${v} jaar</option>`).join('')}</select></label>
+    <label class="f full">Restwaarde na afschrijven<input name="rest" inputmode="decimal" value="${it.rest??0}" placeholder="0,00"></label>
+  </div>
+  <div id="ivCalc" class="detail" style="margin-top:14px"></div>
+  <div class="btnrow"><button class="btn" type="submit">${edit?'Wijziging opslaan':'Opslaan'}</button>${edit?'<button class="btn warn" type="button" id="ivDel">Verwijderen</button>':''}</div>
+  <p class="fine">Spullen boven ongeveer €450 die je meerdere jaren gebruikt, mag je niet in één keer als kosten opvoeren. Je schrijft ze af. De btw trek je wel meteen af in het kwartaal van aankoop.</p></form>`,()=>{
+    const F=$('#ivF');
+    const calc=()=>{const tmp={bedrag:num(F.elements.bedrag.value),btw:+F.elements.btw.value,jaren:+F.elements.jaren.value,rest:num(F.elements.rest.value),datum:F.elements.datum.value||today()};
+      const excl=tmp.bedrag-investBtw(tmp),perJaar=Math.max(0,(excl-tmp.rest))/(tmp.jaren||5);
+      $('#ivCalc').innerHTML=`<div class="r"><span>Btw terug te vragen</span><span>${fm(investBtw(tmp))}</span></div>
+        <div class="r"><span>Afschrijving per jaar</span><span>${fm(r2(perJaar))}</span></div>
+        <div class="r"><span>In ${S.year} als kosten</span><span>${fm(investAfschrijving(tmp,S.year+'-01-01',S.year+'-12-31'))}</span></div>`};
+    F.oninput=calc;F.onchange=calc;calc();
+    F.onsubmit=async e=>{e.preventDefault();const b=num(F.elements.bedrag.value);if(!(b>0)){toast('Vul een bedrag in');return}
+      const o={id:it.id||newId(),naam:F.elements.naam.value.trim(),bedrag:r2(b),datum:F.elements.datum.value,btw:+F.elements.btw.value,jaren:+F.elements.jaren.value,rest:r2(num(F.elements.rest.value)),created:it.created||new Date().toISOString()};
+      if(await safe(store.put('invest',o),edit?'Wijziging opgeslagen':'Investering opgeslagen'))closeSheet()};
+    const d=$('#ivDel');if(d)d.onclick=async()=>{if(!confirm(`${it.naam} verwijderen?`))return;if(await safe(store.del('invest',it.id),'Verwijderd'))closeSheet()};
+  })}
+
+/* ---------- aanmaningen ---------- */
+const daysLate=f=>f.verval?Math.floor((new Date(today())-new Date(f.verval))/86400000):0;
+function incassoKosten(bedrag){const k=Math.max(40,bedrag*0.15);return r2(Math.min(k,bedrag*0.15))}
+function reminderText(f,stap){const s=S.settings,t=docTotals(f),d=daysLate(f);
+  const kop=`Beste ${f.klant.naam},`;
+  if(stap===1)return `${kop}\n\nFactuur ${f.nummer} van ${fm(t.inc)} stond op ${nlDate(f.verval)} als vervaldatum en is nog niet betaald. Waarschijnlijk is het je ontgaan. Wil je het bedrag deze week overmaken${s.iban?' op '+s.iban:''} onder vermelding van ${f.nummer}?\n\nMet vriendelijke groet,\n${s.naam}`;
+  if(stap===2)return `${kop}\n\nFactuur ${f.nummer} van ${fm(t.inc)} is nu ${d} dagen te laat. Ik heb je hier al eerder aan herinnerd. Graag ontvang ik het bedrag binnen 7 dagen${s.iban?' op '+s.iban:''} onder vermelding van ${f.nummer}.\n\nBlijft betaling uit, dan breng ik de wettelijke rente en incassokosten in rekening.\n\nMet vriendelijke groet,\n${s.naam}`;
+  return `${kop}\n\nFactuur ${f.nummer} van ${fm(t.inc)} is ${d} dagen te laat en meerdere herinneringen bleven zonder betaling. Dit is een ingebrekestelling: ik geef je nog 14 dagen om het volledige bedrag te betalen${s.iban?' op '+s.iban:''} onder vermelding van ${f.nummer}.\n\nBetaal je niet binnen die termijn, dan komen daar de wettelijke rente en incassokosten van ${fm(incassoKosten(t.inc))} bij en draag ik de vordering over.\n\nMet vriendelijke groet,\n${s.naam}`}
+function openReminder(f){
+  const stap=Math.min(3,(f.herinneringen||[]).length+1),tekst=reminderText(f,stap);
+  const namen={1:'Vriendelijke herinnering',2:'Tweede herinnering',3:'Ingebrekestelling'};
+  openSheet(namen[stap],`<p class="fine" style="margin-top:0">Factuur ${esc(f.nummer)} · ${daysLate(f)} dagen te laat · ${fm(docTotals(f).inc)}</p>
+  <label class="f" style="margin-top:6px">Bericht<textarea id="rTxt" rows="12">${esc(tekst)}</textarea></label>
+  <div class="chan"${mcp?' style="grid-template-columns:1fr 1fr"':''}>
+    ${mcp?`<button data-r="gmail">${IC.mail}Gmail met pdf</button>`:''}
+    <button data-r="email">${IC.mail}E-mail</button>
+    <button data-r="whatsapp">${IC.wa}WhatsApp</button>
+    <button data-r="kopie">${IC.hand}Kopiëren</button>
+  </div>
+  <div id="rConfirm"></div>
+  ${stap===3?'<p class="fine">Bij een zakelijke klant mag je na deze termijn wettelijke handelsrente en incassokosten rekenen. Bij een particulier moet je eerst deze 14-dagenbrief sturen, anders mag dat niet.</p>':''}
+  ${(f.herinneringen||[]).length?`<p class="fine">Eerder gestuurd: ${f.herinneringen.map(h=>nlDate(h.op)).join(', ')}</p>`:''}`,()=>{
+    const mark=async via=>{const o={...f,herinneringen:[...(f.herinneringen||[]),{op:today(),via,stap}]};
+      if(await safe(store.put('inv',o),'Herinnering genoteerd'))openInvDetail(o)};
+    const ask=via=>{$('#rConfirm').innerHTML=`<div class="confirm"><p>Verstuurd?</p><div class="btnrow" style="margin-top:0"><button class="btn" id="rYes">Ja, noteer het</button><button class="btn alt" id="rNo">Nog niet</button></div></div>`;
+      $('#rYes').onclick=()=>mark(via);$('#rNo').onclick=()=>{$('#rConfirm').innerHTML=''}};
+    $$('#shBody [data-r]').forEach(b=>b.onclick=async()=>{const via=b.dataset.r,txt=$('#rTxt').value;
+      if(via==='gmail'){gmailFlow('#rConfirm',f,'Factuur',`Herinnering factuur ${f.nummer} ${S.settings.naam}`,txt,mark);return}
+      if(via==='email'){const s=S.settings;location.href=`mailto:${encodeURIComponent(f.klant.mail||'')}?subject=${encodeURIComponent('Herinnering factuur '+f.nummer+' '+s.naam)}&body=${encodeURIComponent(txt)}`}
+      if(via==='whatsapp')window.open(`https://wa.me/${klantTel(f)}?text=${encodeURIComponent(txt)}`,'_blank','noopener');
+      if(via==='kopie'){try{await navigator.clipboard.writeText(txt);toast('Tekst gekopieerd')}catch(e){const t=$('#rTxt');t.focus();t.select();toast('Selecteer en kopieer de tekst')}}
+      ask(via)});
+  })}
+
+/* ---------- urenregistratie ---------- */
+function urenIn(y){return S.uren.filter(u=>yearOf(u.datum)===y).reduce((a,u)=>a+num(u.uren),0)}
+function openUren(u){
+  const edit=!!u;u=u||{datum:today(),uren:'',soort:'direct'};
+  const ks=[...S.klant].sort((a,b)=>a.naam.localeCompare(b.naam,'nl'));
+  openSheet(edit?'Uren wijzigen':'Uren schrijven',`<form id="urF" autocomplete="off">
+    <div class="seg"><button type="button" data-s="direct" aria-pressed="${u.soort!=='indirect'}">Voor een klant</button><button type="button" data-s="indirect" aria-pressed="${u.soort==='indirect'}">Indirect</button></div>
+    <div class="grid2">
+      <label class="f">Datum<input type="date" name="datum" required value="${u.datum}"></label>
+      <label class="f">Aantal uren<input name="uren" inputmode="decimal" required value="${u.uren}" placeholder="bijv. 4,5"></label>
+      <label class="f full" id="klL">Klant<select name="klant"><option value="">Geen klant</option>${ks.map(k=>`<option ${k.naam===u.klant?'selected':''}>${esc(k.naam)}</option>`).join('')}</select></label>
+      <label class="f full">Waar werkte je aan<input name="oms" value="${esc(u.oms||'')}" placeholder="Bijv. ramen Villa de Duinen"></label>
+    </div>
+    <div class="btnrow"><button class="btn" type="submit">${edit?'Wijziging opslaan':'Uren opslaan'}</button>${edit?'<button class="btn warn" type="button" id="urDel">Verwijderen</button>':''}</div>
+    <p class="fine">Indirecte uren tellen ook mee voor het urencriterium: administratie, offertes maken, reistijd, cursus en acquisitie. Schrijf ze dus ook op.</p></form>`,()=>{
+    const F=$('#urF');let soort=u.soort||'direct';
+    const sync=()=>{$('#klL').hidden=soort==='indirect'};sync();
+    $$('#urF .seg button').forEach(b=>b.onclick=()=>{soort=b.dataset.s;$$('#urF .seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));sync()});
+    F.onsubmit=async e=>{e.preventDefault();const h=num(F.elements.uren.value);if(!(h>0)){toast('Vul een aantal uren in');return}
+      const o={id:u.id||newId(),datum:F.elements.datum.value,uren:r2(h),soort,klant:soort==='direct'?F.elements.klant.value:'',oms:F.elements.oms.value.trim(),created:u.created||new Date().toISOString()};
+      if(await safe(store.put('uren',o),edit?'Aangepast':'Uren opgeslagen'))closeSheet()};
+    const d=$('#urDel');if(d)d.onclick=async()=>{if(await safe(store.del('uren',u.id),'Verwijderd'))closeSheet()};
+  })}
+
+/* ---------- belastingschatting ---------- */
+function taxEstimate(y){const st=S.settings;
+  const winst=figures(d=>yearOf(d)===y).winst,uren=urenIn(y),norm=num(st.urennorm)||1225,crit=uren>=norm;
+  const zelfst=crit?Math.min(Math.max(0,winst),num(st.zelfst)):0;
+  const starters=crit&&st.starters==='ja'?Math.min(Math.max(0,winst-zelfst),2123):0;
+  const naAftrek=Math.max(0,winst-zelfst-starters);
+  const mkb=naAftrek*(num(st.mkb)||12.7)/100,belastbaar=Math.max(0,naAftrek-mkb);
+  const loon=num(st.loon),box1=belastbaar+loon;
+  const B=[[38883,.3575],[78426,.3756],[Infinity,.495]];let rest=box1,prev=0,bruto=0;
+  for(const [top,pct] of B){const deel=Math.max(0,Math.min(rest,top-prev));bruto+=deel*pct;rest-=deel;prev=top;if(rest<=0)break}
+  const ahk=box1<=29736?3115:box1<78426?3115-.06398*(box1-29736):0;
+  const a=box1,ak=a<=11965?.08324*a:a<=25845?996+.31009*(a-11965):a<=45592?5300+.0195*(a-25845):a<=132920?5685-.0651*(a-45592):0;
+  const ib=Math.max(0,bruto-ahk-ak),zvw=Math.min(belastbaar,79409)*.0485;
+  const alBetaald=num(st.loonheffing)+num(st.voorlopig);
+  const totaal=Math.max(0,ib+zvw-alBetaald);
+  return{winst:r2(winst),uren,norm,crit,zelfst:r2(zelfst),starters:r2(starters),mkb:r2(mkb),belastbaar:r2(belastbaar),loon,bruto:r2(bruto),akort:r2(ahk),ak:r2(ak),ib:r2(ib),zvw:r2(zvw),alBetaald,totaal:r2(totaal)}}
+function openTax(){const y=S.year,t=taxEstimate(y);
+  openSheet(`Belasting ${y}`,`<p class="fine" style="margin-top:0">Schatting over je winst tot nu toe, met de tarieven van 2026.</p>
+  <div class="detail">
+    <div class="r"><span>Winst</span><span>${fm(t.winst)}</span></div>
+    <div class="r"><span>Zelfstandigenaftrek</span><span>${t.crit?'−'+fm(t.zelfst):'vervalt (urencriterium)'}</span></div>
+    ${t.starters?`<div class="r"><span>Startersaftrek</span><span>−${fm(t.starters)}</span></div>`:''}
+    <div class="r"><span>Mkb-winstvrijstelling</span><span>−${fm(t.mkb)}</span></div>
+    <div class="r"><span>Belastbare winst</span><span>${fm(t.belastbaar)}</span></div>
+    ${t.loon?`<div class="r"><span>Plus loon uit loondienst</span><span>${fm(t.loon)}</span></div>`:''}
+    <div class="r"><span>Belasting volgens de schijven</span><span>${fm(t.bruto)}</span></div>
+    <div class="r"><span>Algemene heffingskorting</span><span>−${fm(t.akort)}</span></div>
+    <div class="r"><span>Arbeidskorting</span><span>−${fm(t.ak)}</span></div>
+    <div class="r"><span>Bijdrage Zvw (4,85%)</span><span>${fm(t.zvw)}</span></div>
+    ${t.alBetaald?`<div class="r"><span>Al betaald</span><span>−${fm(t.alBetaald)}</span></div>`:''}
+    <div class="r" style="font-weight:600"><span style="color:var(--ink)">Zet opzij</span><span>${fm(t.totaal)}</span></div>
+  </div>
+  <div class="banner ${t.crit?'ok':'amber'}" style="margin-top:12px">${t.crit?IC.hand:IC.warn}<span>${Math.round(t.uren).toLocaleString('nl-NL')} van de ${t.norm.toLocaleString('nl-NL')} uur geschreven.${t.crit?' Je haalt het urencriterium.':` Haal je de norm, dan krijg je ${fm(num(S.settings.zelfst))} zelfstandigenaftrek.`}</span></div>
+  <div class="btnrow"><button class="btn alt" id="tUren">Uren schrijven</button></div>
+  <p class="fine">Werk je ook in loondienst? Vul dan je loon en ingehouden loonheffing in bij Instellingen, anders klopt de schatting niet. Toeslagen, een fiscale partner en persoonlijke aftrekposten zitten er niet in. Laat je aangifte bij twijfel nakijken.</p>`,()=>{$('#tUren').onclick=()=>openUren()})}
+
+/* ---------- debiteuren ---------- */
+function openDebiteuren(){
+  const open=S.inv.filter(f=>f.status==='verstuurd'||f.status==='definitief');
+  const bucket=f=>{const d=daysLate(f);return d<=0?0:d<=30?1:d<=60?2:3};
+  const namen=['Nog niet vervallen','1 tot 30 dagen te laat','30 tot 60 dagen te laat','Meer dan 60 dagen te laat'];
+  const groups=[0,1,2,3].map(i=>open.filter(f=>bucket(f)===i));
+  const tot=open.reduce((a,f)=>a+docTotals(f).inc,0);
+  openSheet('Debiteuren',`<p class="summary" style="margin:0 0 12px">Openstaand <b>${fm(tot)}</b> · ${open.length} facturen</p>
+  ${groups.map((g,i)=>g.length?`<div class="label">${namen[i]} · ${fm(g.reduce((a,f)=>a+docTotals(f).inc,0))}</div><div class="card list">${g.sort((a,b)=>a.verval.localeCompare(b.verval)).map(f=>`<button class="doc" data-inv="${f.id}"><span><div class="t">${esc(f.klant.naam)}</div><div class="s">${esc(f.nummer||'concept')} · verviel ${nlDate(f.verval)}</div></span><span class="amt">${fm(docTotals(f).inc)}</span></button>`).join('')}</div>`:'').join('')}
+  ${open.length?'':'<div class="empty card">Alles is betaald.</div>'}`)}
+
+/* ---------- jaarafsluiting en back-up ---------- */
+function openJaar(){const y=S.year,F=figures(d=>yearOf(d)===y),t=taxEstimate(y);
+  const afs=afschrijvingIn(d=>yearOf(d)===y),inv=S.invest.filter(i=>yearOf(i.datum)===y).reduce((a,i)=>a+num(i.bedrag)-investBtw(i),0);
+  const prive=S.tx.filter(x=>yearOf(x.datum)===y&&x.cat==='Privé-opname').reduce((a,x)=>a+num(x.bedrag),0);
+  const btwJ=[1,2,3,4].map(q=>vatDetail(y,q).saldo).reduce((a,b)=>a+b,0);
+  const fact=S.inv.filter(f=>yearOf(f.datum)===y&&sent(f)).length;
+  openSheet(`Jaaroverzicht ${y}`,`<div class="detail">
+    <div class="r"><span>Omzet</span><span>${fm(F.omzet)}</span></div>
+    <div class="r"><span>Kosten (incl. afschrijving ${fm(afs)})</span><span>${fm(F.kosten)}</span></div>
+    <div class="r" style="font-weight:600"><span style="color:var(--ink)">Winst</span><span>${fm(F.winst)}</span></div>
+    <div class="r"><span>Facturen verstuurd</span><span>${fact}</span></div>
+    <div class="r"><span>Geïnvesteerd</span><span>${fm(inv)}</span></div>
+    <div class="r"><span>Privé opgenomen</span><span>${fm(prive)}</span></div>
+    <div class="r"><span>Btw over het jaar</span><span>${fm(btwJ)}</span></div>
+    <div class="r"><span>Uren geschreven</span><span>${urenIn(y).toLocaleString('nl-NL')}</span></div>
+    <div class="r"><span>Geschatte belasting</span><span>${fm(t.totaal)}</span></div>
+  </div>
+  <div class="btnrow"><button class="btn alt" id="jCsv">CSV voor de boekhouder</button><button class="btn alt" id="jBack">Back-up opslaan</button></div>
+  <div class="btnrow"><label class="btn alt" style="text-align:center;cursor:pointer">Back-up terugzetten<input type="file" id="jRest" accept=".json,application/json" hidden></label></div>
+  <p class="fine">Bewaar je administratie 7 jaar. Maak minstens één keer per jaar een back-up en zet die ergens veilig neer.</p>`,()=>{
+    $('#jCsv').onclick=exportCsv;
+    $('#jBack').onclick=async()=>{const data=JSON.stringify({versie:1,gemaakt:new Date().toISOString(),settings:S.settings,tx:S.tx,facturen:S.inv,offertes:S.off,klanten:S.klant,investeringen:S.invest,uren:S.uren},null,1);
+      if(!downloads){toast('Opslaan werkt in de gepubliceerde app');return}
+      try{await downloads.save({filename:`Backup boekhouding ${new Date().toISOString().slice(0,10)}.json`,data});toast('Back-up opgeslagen')}catch(e){if(e.code!=='declined')toast('Opslaan lukte niet')}};
+    $('#jRest').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+      let j;try{j=JSON.parse(await f.text())}catch(err){toast('Dit is geen geldige back-up');return}
+      if(!j||!Array.isArray(j.tx)){toast('Dit is geen geldige back-up');return}
+      const n=(j.tx||[]).length+(j.facturen||[]).length+(j.offertes||[]).length+(j.klanten||[]).length+(j.investeringen||[]).length+(j.uren||[]).length;
+      if(!confirm(`${n} regels terugzetten? Bestaande gegevens met hetzelfde kenmerk worden overschreven.`))return;
+      for(const [kind,arr] of [['tx',j.tx],['inv',j.facturen],['off',j.offertes],['klant',j.klanten],['invest',j.investeringen],['uren',j.uren]])
+        for(const it of arr||[])if(it&&it.id)await safe(store.put(kind,it));
+      if(j.settings)await safe(store.settings({...DEF,...j.settings}));
+      toast('Back-up teruggezet');closeSheet()};
+  })}
+
+/* ---------- bankimport ---------- */
+const RULES=[[/albert heijn|jumbo|dirk |lidl|aldi|plus |vomar|supermarkt/i,'Overig'],[/shell|bp |esso|total|tinq|tankstation|q-park|parkeer|ovpay|\bns\b/i,'Vervoer'],
+[/odido|t-mobile|kpn|vodafone|ziggo|telefoon/i,'Telefoon en internet'],[/tellow|mijn\.host|google|microsoft|adobe|apple|hosting|domein|software|canva/i,'Software en website'],
+[/verzekering|interpolis|centraal beheer|fbto|\bnn\b|asr/i,'Verzekeringen'],[/action|gamma|praxis|hornbach|karwei|bouwmarkt|makro|zeep|reiniging|schoonmaak/i,'Materiaal en middelen'],
+[/bol\.com|coolblue|amazon|gereedschap|toolstation/i,'Gereedschap'],[/facebook|meta platforms|google ads|advertentie|marketing|reclame/i,'Reclame'],
+[/rente|bankkosten|kosten oranje|pakket/i,'Bankkosten'],[/knauf|prive|privé|spaarrekening/i,'Privé-opname']];
+function guessCat(txt){for(const [re,c] of RULES)if(re.test(txt))return c;return 'Overig'}
+function parseBank(text){
+  text=text.replace(/^\ufeff/,'');const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return{rows:[],error:'Het bestand is leeg.'};
+  const delim=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?';':',';
+  const cut=l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];
+    if(c==='"'){if(q&&l[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===delim&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out.map(x=>x.trim())};
+  const head=cut(lines[0]).map(h=>h.toLowerCase().replace(/"/g,''));
+  const find=(...keys)=>head.findIndex(h=>keys.some(k=>h.includes(k)));
+  const iDate=find('datum','date'),iAmt=find('bedrag','amount'),iName=find('naam','tegenpartij','counterparty','name'),
+        iDesc=find('mededeling','omschrijving','description'),iAf=find('af bij','af/bij','bij/af','debet','credit/debit');
+  if(iDate<0||iAmt<0)return{rows:[],error:'Ik herken de kolommen niet. Gebruik de gewone CSV-export van je bank.'};
+  const rows=[];
+  for(const l of lines.slice(1)){const c=cut(l);if(c.length<2)continue;
+    let d=(c[iDate]||'').replace(/"/g,'').trim();
+    if(/^\d{8}$/.test(d))d=d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6);
+    else if(/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(d))d=d.slice(6,10)+'-'+d.slice(3,5)+'-'+d.slice(0,2);
+    else if(/^\d{4}[-/]\d{2}[-/]\d{2}/.test(d))d=d.slice(0,10).replace(/\//g,'-');else continue;
+    let raw=(c[iAmt]||'').replace(/["\s€]/g,'');
+    if(raw.includes(',')&&raw.includes('.'))raw=raw.replace(/\./g,'').replace(',','.');else raw=raw.replace(',','.');
+    let amt=parseFloat(raw);if(isNaN(amt))continue;
+    if(iAf>=0&&/^(af|debet|d)$/i.test((c[iAf]||'').trim()))amt=-Math.abs(amt);
+    const naam=(c[iName]||'').replace(/"/g,''),oms=(c[iDesc]||'').replace(/"/g,'');
+    const txt=(naam+' '+oms).trim();
+    rows.push({id:'bank-'+d+'-'+Math.round(Math.abs(amt)*100)+'-'+(txt.replace(/[^a-z0-9]/gi,'').slice(0,18).toLowerCase()||'x'),
+      datum:d,bedrag:r2(amt),naam:naam||oms.slice(0,40)||'Bankregel',oms:txt});}
+  return{rows,error:rows.length?'':'Ik vond geen regels met een datum en een bedrag in dit bestand.'}}
+function matchInvoice(row){if(row.bedrag<=0)return null;
+  const nr=(row.oms.match(/20\d\d-\d{3,5}/)||[])[0];
+  const open=S.inv.filter(f=>f.status==='verstuurd'||f.status==='definitief');
+  return open.find(f=>nr&&f.nummer===nr)||open.find(f=>Math.abs(docTotals(f).inc-row.bedrag)<0.02)||null}
+function openImport(){
+  openSheet('Bankafschrift importeren',`<p class="fine" style="margin-top:0">Download bij je bank je transacties als CSV en kies dat bestand hier. De app herkent welke facturen betaald zijn, stelt een categorie voor en slaat regels over die je al eerder importeerde.</p>
+  <label class="btn alt" style="display:block;cursor:pointer;margin-top:14px">Kies CSV-bestand<input type="file" id="bankFile" accept=".csv,text/csv,text/plain" hidden></label>
+  <div id="bankList"></div>`,()=>{
+    $('#bankFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+      const text=await f.text();const res=parseBank(text);
+      const have=new Set(S.tx.map(t=>t.id));
+      const fresh=res.rows.filter(r=>!have.has(r.id));
+      if(res.error||!fresh.length){$('#bankList').innerHTML=`<p class="fine">${esc(res.error||'Alle regels uit dit bestand staan al in de app.')}</p>`;return}
+      const plan=fresh.map(r=>({...r,inv:matchInvoice(r),cat:r.bedrag<0?guessCat(r.oms):CATS('in')[0],use:true}));
+      const draw=()=>{
+        $('#bankList').innerHTML=`<div class="label">${plan.length} nieuwe regels</div><div class="card list">${plan.map((r,i)=>`
+        <div class="trow" style="align-items:flex-start;gap:10px">
+          <input type="checkbox" data-u="${i}" ${r.use?'checked':''} style="width:21px;height:21px;accent-color:var(--accent);margin-top:5px;flex:none">
+          <span class="main"><div class="t">${esc(r.naam)}</div><div class="s">${nlDate(r.datum)} · ${esc(r.oms.slice(0,40))}</div>
+          ${r.inv?`<div class="s" style="color:var(--pos)">Betaalt factuur ${esc(r.inv.nummer)}</div>`:`<select data-c="${i}" style="margin-top:6px;padding:7px 10px;border:0;border-radius:10px;background:var(--fill);font-size:13px;max-width:100%">${CATS(r.bedrag<0?'uit':'in').map(c=>`<option ${c===r.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>`}</span>
+          <span class="amt" style="color:${r.bedrag<0?'var(--neg)':'var(--pos)'}">${r.bedrag<0?'−':'+'} ${fm(Math.abs(r.bedrag))}</span>
+        </div>`).join('')}</div>
+        <div class="btnrow"><button class="btn" id="bImp" ${plan.some(x=>x.use)?'':'disabled'}>Boek ${plan.filter(x=>x.use).length} regels in</button></div>`;
+        $$('#bankList [data-u]').forEach(c=>c.onchange=()=>{plan[+c.dataset.u].use=c.checked;draw()});
+        $$('#bankList [data-c]').forEach(sel=>sel.onchange=()=>{plan[+sel.dataset.c].cat=sel.value});
+        const b=$('#bImp');if(b)b.onclick=async()=>{b.disabled=true;let n=0,m=0;
+          for(const r of plan.filter(x=>x.use)){
+            if(r.inv){const t=docTotals(r.inv);const tx={id:r.id,type:'in',datum:r.datum,oms:`Factuur ${r.inv.nummer} ${r.inv.klant.naam}`,cat:CATS('in')[0],btw:r.inv.kor?0:(r.inv.regels[0]?.btw??21),betaal:'bank',bedrag:Math.abs(r2(r.bedrag)),factuurId:r.inv.id,created:new Date().toISOString()};
+              await safe(store.put('tx',tx));await safe(store.put('inv',{...r.inv,status:'betaald',betaaldOp:r.datum,betaalTx:tx.id}));m++}
+            else{const uit=r.bedrag<0;const tx={id:r.id,type:uit?'uit':'in',datum:r.datum,oms:r.naam,cat:r.cat,btw:PRIVE.includes(r.cat)?0:21,betaal:'bank',bedrag:Math.abs(r2(r.bedrag)),created:new Date().toISOString()};
+              if(uit){tx.status='betaald';tx.bon=null}await safe(store.put('tx',tx));n++}}
+          toast(`${n+m} regels geboekt${m?`, ${m} ${m===1?'factuur':'facturen'} op betaald`:''}`);if(m)confetti();closeSheet()};
+      };draw()};
+  })}
+
+/* ---------- btw, instellingen, menu ---------- */
+function vatDetail(y,q){const pred=d=>yearOf(d)===y&&qOf(d)===q;let o21=0,b21=0,o9=0,b9=0,o0=0,kosten=0,voor=0;
+  const addLine=(ex,btw)=>{if(btw===21){o21+=ex;b21+=ex*.21}else if(btw===9){o9+=ex;b9+=ex*.09}else o0+=ex};
+  for(const f of S.inv){if(!sent(f)||!pred(f.datum))continue;for(const l of f.regels){const ex=num(l.aantal)*num(l.prijs);addLine(ex,f.kor?0:num(l.btw))}}
+  for(const t of S.tx){if(!pred(t.datum)||PRIVE.includes(t.cat))continue;const sp=split(num(t.bedrag),(kor()&&t.type==='in')?0:num(t.btw));
+    if(t.type==='in'){if(!t.factuurId)addLine(sp.ex,kor()?0:num(t.btw))}else{kosten+=sp.ex;voor+=kor()?0:sp.btw}}
+  kosten+=afschrijvingIn(pred);
+  for(const it of S.invest){if(pred(it.datum)&&!kor())voor+=investBtw(it)}
+  return{o21:r2(o21),b21:r2(b21),o9:r2(o9),b9:r2(b9),o0:r2(o0),kosten:r2(kosten),voor:r2(voor),saldo:r2(b21+b9-voor)}}
+function openBtwQ(y,q){const v=vatDetail(y,q);
+  openSheet(`Btw kwartaal ${q} ${y}`,`<p class="fine" style="margin-top:0">Dit vul je zo over in Mijn Belastingdienst Zakelijk.</p>
+  <div class="detail">
+    <div class="r"><span>1a omzet 21%</span><span>${fm(v.o21)}</span></div>
+    <div class="r"><span>1a btw 21%</span><span>${fm(v.b21)}</span></div>
+    ${v.o9?`<div class="r"><span>1b omzet 9%</span><span>${fm(v.o9)}</span></div><div class="r"><span>1b btw 9%</span><span>${fm(v.b9)}</span></div>`:''}
+    ${v.o0?`<div class="r"><span>1e omzet 0% of verlegd</span><span>${fm(v.o0)}</span></div>`:''}
+    <div class="r"><span>5b voorbelasting</span><span>${fm(v.voor)}</span></div>
+    <div class="r" style="font-weight:600"><span style="color:var(--ink)">${v.saldo<0?'Terug te krijgen':'Te betalen'}</span><span>${fm(Math.abs(v.saldo))}</span></div>
+  </div>
+  <div class="detail" style="margin-top:12px"><div class="r"><span>Kosten dit kwartaal</span><span>${fm(v.kosten)}</span></div><div class="r"><span>Uiterlijk indienen</span><span>${deadlineText(y,q)}</span></div></div>
+  <p class="fine">Heb je zelf btw verlegd gekregen van een leverancier, dan hoort die bij rubriek 2a. Dat kan de app nog niet automatisch zien.</p>
+  <div class="btnrow"><button class="btn alt" id="bBack">Terug naar het jaar</button></div>`,()=>{$('#bBack').onclick=openBtw})}
+function openBtw(){const y=S.year;const qs=[1,2,3,4].map(q=>({q,F:figures(d=>yearOf(d)===y&&qOf(d)===q)}));
+  openSheet(`Btw ${y}`,`${kor()?'<p class="fine">Je gebruikt de KOR, dus je rekent geen btw en doet geen btw-aangifte.</p>':''}<div class="qgrid">${qs.map(({q,F})=>`<button class="detail" data-q="${q}" style="border:0;text-align:left;width:100%"><div style="font-weight:700;margin-bottom:6px">Kwartaal ${q}</div><div class="r"><span>Omzet-btw</span><span>${fm(F.btwU)}</span></div><div class="r"><span>Voorbelasting</span><span>−${fm(F.voor)}</span></div><div class="r" style="font-weight:700"><span style="color:var(--ink)">${F.btw<0?'Terug':'Betalen'}</span><span>${fm(Math.abs(F.btw))}</span></div><div class="fine" style="margin:4px 0 0">Uiterlijk ${deadlineText(y,q)}</div></button>`).join('')}</div>
+  <p class="fine">Tik op een kwartaal voor de bedragen per rubriek van de aangifte.</p>`,()=>{$$('#shBody [data-q]').forEach(b=>b.onclick=()=>openBtwQ(y,+b.dataset.q))})}
+function openSettings(){const s=S.settings;
+  openSheet('Instellingen',`<form id="setF" autocomplete="off"><div class="grid2">
+    ${[['naam','Bedrijfsnaam','full'],['adres','Adres','full'],['plaats','Postcode en plaats'],['tel','Telefoon'],['mail','E-mail'],['web','Website'],['kvk','KvK-nummer'],['btwnr','Btw-id'],['iban','IBAN zakelijke rekening','full']].map(([k,l,c])=>`<label class="f ${c||''}">${l}<input name="${k}" value="${esc(s[k])}"></label>`).join('')}
+    <label class="f">Eerste factuurnummer dit jaar<input name="startNr" inputmode="numeric" value="${esc(s.startNr)}"></label>
+    <label class="f">Reserve inkomstenbelasting<select name="res">${[20,25,30,35].map(v=>`<option value="${v}" ${+s.res===v?'selected':''}>${v}%</option>`).join('')}</select></label>
+    <label class="f">Zelfstandigenaftrek<input name="zelfst" inputmode="decimal" value="${esc(s.zelfst)}"></label>
+    <label class="f">Startersaftrek<select name="starters"><option value="nee" ${s.starters!=='ja'?'selected':''}>Nee</option><option value="ja" ${s.starters==='ja'?'selected':''}>Ja</option></select></label>
+    <label class="f">Mkb-winstvrijstelling %<input name="mkb" inputmode="decimal" value="${esc(s.mkb)}"></label>
+    <label class="f">Urennorm per jaar<input name="urennorm" inputmode="numeric" value="${esc(s.urennorm)}"></label>
+    <label class="f">Loon uit loondienst dit jaar<input name="loon" inputmode="decimal" value="${esc(s.loon)}" placeholder="0"></label>
+    <label class="f">Ingehouden loonheffing<input name="loonheffing" inputmode="decimal" value="${esc(s.loonheffing)}" placeholder="0"></label>
+    <label class="f full">Al betaald via voorlopige aanslag<input name="voorlopig" inputmode="decimal" value="${esc(s.voorlopig)}" placeholder="0"></label>
+    <label class="f full">Betaal-QR op facturen<select name="qr"><option value="ja" ${s.qr!=='nee'?'selected':''}>Ja, zet een QR-code op de factuur</option><option value="nee" ${s.qr==='nee'?'selected':''}>Nee</option></select></label>
+    <label class="f full">Categorieën inkomsten (één per regel)<textarea name="catIn" rows="4">${esc(s.catIn)}</textarea></label>
+    <label class="f full">Categorieën uitgaven (één per regel)<textarea name="catUit" rows="5">${esc(s.catUit)}</textarea></label>
+    <label class="f full">Kleineondernemersregeling<select name="kor"><option value="nee" ${s.kor!=='ja'?'selected':''}>Nee, ik reken btw</option><option value="ja" ${s.kor==='ja'?'selected':''}>Ja, ik gebruik de KOR</option></select></label>
+  </div><div class="btnrow"><button class="btn" type="submit">Opslaan</button></div>
+  <p class="fine">Stap je over van Tellow? Zet het eerste factuurnummer op het volgende nummer uit Tellow, dan blijft je nummering doorlopend.</p></form>
+  <div class="label">Jaar</div><div class="chips" id="yrs"></div>
+  <div class="label">Account</div><div class="detail"><p class="fine" style="margin:0 0 10px">Ingelogd als ${esc(me?me.email:'')}</p><button class="btn warn" id="logoutB" style="width:100%">Uitloggen</button></div>
+  <div class="label">Jaar afsluiten</div><div class="detail"><p class="fine" style="margin:0 0 10px">Overzicht van ${S.year}, export voor de boekhouder en een back-up van al je gegevens.</p><button class="btn alt" id="jaarB" style="width:100%">Jaaroverzicht ${S.year}</button></div>
+  <div class="label">Bank</div><div class="detail"><p class="fine" style="margin:0 0 10px">Importeer je bankafschrift als CSV. De app koppelt betalingen aan facturen en stelt categorieën voor.</p><button class="btn alt" id="impB" style="width:100%">Bankafschrift importeren</button></div>
+  <div class="label">Exporteren</div><div class="detail"><p class="fine" style="margin:0 0 10px">Alle transacties en facturen van ${S.year} als CSV, voor je aangifte of een boekhouder. Bewaar dit 7 jaar.</p><button class="btn alt" id="expB" style="width:100%">Exporteer ${S.year}</button></div>`,()=>{
+    const F=$('#setF');F.onsubmit=async e=>{e.preventDefault();const o={};for(const k of Object.keys(DEF))o[k]=(F.elements[k]?.value??'').trim();if(await safe(store.settings(o),'Opgeslagen'))closeSheet()};
+    const ys=new Set([new Date().getFullYear(),S.year]);[...S.tx,...S.inv].forEach(x=>x.datum&&ys.add(yearOf(x.datum)));
+    $('#yrs').innerHTML=[...ys].sort((a,b)=>b-a).map(y=>`<button class="chip" data-y="${y}" aria-pressed="${y===S.year}">${y}</button>`).join('');
+    $$('#yrs .chip').forEach(b=>b.onclick=()=>{S.year=+b.dataset.y;render();openSettings()});
+    $('#expB').onclick=exportCsv;$('#impB').onclick=openImport;$('#jaarB').onclick=openJaar;$('#logoutB').onclick=async()=>{if(sb)await sb.auth.signOut()};
+  })}
+async function exportCsv(){
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,n=v=>String(r2(v)).replace('.',',');
+  const rows=[['Soort','Datum','Omschrijving','Categorie','Via','Status','Btw %','Incl','Btw','Excl','Bonnetje','Factuur'].map(q).join(';')];
+  S.tx.filter(t=>inYear(t.datum)).sort((a,b)=>a.datum.localeCompare(b.datum)).forEach(t=>{const sp=split(num(t.bedrag),num(t.btw)),f=t.factuurId&&S.inv.find(x=>x.id===t.factuurId);rows.push([t.type==='in'?'Inkomst':'Uitgave',nlDate(t.datum),t.oms,t.cat,t.betaal,t.status||'',t.btw,n(t.bedrag),n(sp.btw),n(sp.ex),t.bon?'ja':'',f?f.nummer:''].map(q).join(';'))});
+  rows.push('');rows.push(['Factuur','Datum','Klant','Status','Excl','Btw','Incl'].map(q).join(';'));
+  S.inv.filter(f=>inYear(f.datum)&&f.nummer).sort((a,b)=>a.nummer.localeCompare(b.nummer)).forEach(f=>{const t=docTotals(f);rows.push([f.nummer,nlDate(f.datum),f.klant.naam,f.status,n(t.ex),n(t.btw),n(t.inc)].map(q).join(';'))});
+  if(!downloads){toast('Exporteren werkt in de gepubliceerde app');return}
+  try{await downloads.save({filename:`Boekhouding ${S.settings.naam} ${S.year}.csv`,data:'\ufeff'+rows.join('\r\n')})}catch(e){if(e.code!=='declined')toast('Exporteren lukte niet')}
+}
+function openNewMenu(){const ic=(c,p)=>`<span class="ic ${c}" style="background:var(--${c==='g'?'mint':'coral'}-bg);color:var(--${c==='g'?'mint':'coral'})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${p}"/></svg></span>`;
+  openSheet('Nieuw',`<div class="menu">
+    <button data-n="in">${ic('g','M17 7 7 17M7 8v9h9')}Inkomst of contante betaling</button>
+    <button data-n="uit">${ic('r','M7 17 17 7M8 7h9v9')}Uitgave met bonnetje</button>
+    <button data-n="inv">${ic('g','M6 3h9l4 4v14H6zM9 12h6M9 16h6')}Factuur</button>
+    <button data-n="off">${ic('g','M6 3h9l4 4v14H6zM9 12h6M9 16h4')}Offerte</button>
+    <button data-n="klant">${ic('g','M16 19v-1a4 4 0 0 0-8 0v1M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z')}Klant</button>
+    <button data-n="uren">${ic('g','M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z')}Uren schrijven</button>
+    <button data-n="invest">${ic('r','M3 17l6-6 4 4 7-7M14 8h6v6')}Investering (afschrijven)</button>
+    <button data-n="bank">${ic('g','M3 10h18M5 10v8M19 10v8M3 20h18M12 3l9 5H3z')}Bankafschrift importeren</button></div>`,()=>{
+    $$('#shBody [data-n]').forEach(b=>b.onclick=()=>{const k=b.dataset.n;if(k==='in'||k==='uit')openTx(null,k);else if(k==='klant')openKlant();else if(k==='bank')openImport();else if(k==='invest')openInvest();else if(k==='uren')openUren();else openEditor(k)})})}
+
+/* ---------- navigation ---------- */
+const TITLES={home:'Overzicht',transacties:'Transacties',facturen:'Facturen',offertes:'Offertes',uitgaven:'Uitgaven',investeringen:'Investeringen',klanten:'Klanten',uren:'Uren'};
+function go(tab){S.tab=tab;const tb=tab==='offertes'?'facturen':tab==='investeringen'?'uitgaven':tab==='uren'?'transacties':tab;$$('.tabs button').forEach(b=>{if(b.dataset.tab===tb)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});$('#bigTitle').textContent=TITLES[tab];$('#miniTitle').textContent=TITLES[tab];
+  $$('section.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+tab));closeSheet();render();window.scrollTo(0,0);moveInd();
+}
+$$('.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g&&!sheet.contains(g)){if(g.dataset.uf)S.uitF=g.dataset.uf;go(g.dataset.go);return}
+  const tx=e.target.closest('[data-tx]');if(tx&&!sheet.contains(tx)){const t=S.tx.find(x=>x.id===tx.dataset.tx);if(t)openTx(t);return}
+  const iv=e.target.closest('[data-inv]');if(iv){const f=S.inv.find(x=>x.id===iv.dataset.inv);if(f)(f.status==='concept'?openEditor('inv',f):openInvDetail(f));return}
+  const kl=e.target.closest('[data-klant]');if(kl){const k=S.klant.find(x=>x.id===kl.dataset.klant);if(k)openKlantDetail(k);return}
+  const ur=e.target.closest('[data-uren]');if(ur){const u=S.uren.find(x=>x.id===ur.dataset.uren);if(u)openUren(u);return}
+  const ivv=e.target.closest('[data-invest]');if(ivv){const i=S.invest.find(x=>x.id===ivv.dataset.invest);if(i)openInvest(i);return}
+  const of=e.target.closest('[data-off]');if(of){const o=S.off.find(x=>x.id===of.dataset.off);if(o)(o.status==='concept'?openEditor('off',o):openOffDetail(o))}
+});
+$('#txChips').onclick=e=>{const b=e.target.closest('.chip');if(b){S.txF=b.dataset.f;renderTx()}};
+$('#invChips').onclick=e=>{const b=e.target.closest('.chip');if(b){S.invF=b.dataset.f;renderInv()}};
+$('#uitChips').onclick=e=>{const b=e.target.closest('.chip');if(b){S.uitF=b.dataset.f;renderUit()}};
+$('#txSearch').oninput=e=>{S.q=e.target.value;renderTx()};
+$('#invSearch').oninput=e=>{S.invQ=e.target.value;renderInv()};
+
+$('#kSearch').oninput=e=>{kQ=e.target.value.toLowerCase();renderKlanten()};
+document.addEventListener('click',e=>{if(e.target.id!=='importK')return;(async()=>{const un=unsavedFromDocs();for(const k of un)await store.put('klant',{id:newId(),naam:k.naam.trim(),adres:k.adres||'',plaats:k.plaats||'',mail:k.mail||'',tel:'',contact:'',kvk:'',notitie:'',created:new Date().toISOString()});toast(`${un.length} klanten overgenomen`)})()});
+$('#taxBtn').onclick=openTax;$('#debBtn').onclick=openDebiteuren;$('#jaarBtn').onclick=openJaar;
+$('#yearBtn').onclick=()=>{const ys=new Set([new Date().getFullYear(),S.year]);[...S.tx,...S.inv].forEach(x=>x.datum&&ys.add(yearOf(x.datum)));
+  openSheet('Boekjaar',`<div class="menu">${[...ys].sort((a,b)=>b-a).map(y=>`<button data-y="${y}">${y}</button>`).join('')}</div>`,()=>{$$('#shBody [data-y]').forEach(b=>b.onclick=()=>{S.year=+b.dataset.y;render();closeSheet()})})};
+$('#fab').onclick=openNewMenu;$('#menuBtn').onclick=openSettings;$('#btwBtn').onclick=openBtw;
+window.addEventListener('scroll',()=>$('#navbar').classList.toggle('scrolled',window.scrollY>40),{passive:true});
+
+/* ---------- beweging ---------- */
+const calm=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function moveInd(){const b=$('.tabs button[aria-current="page"]'),ind=$('.tabs .ind');if(!b||!ind)return;ind.style.width=b.offsetWidth+'px';ind.style.transform=`translateX(${b.offsetLeft}px)`}
+addEventListener('resize',moveInd);
+const counters=new WeakMap();
+function countTo(el,val){if(!el)return;const from=counters.has(el)?counters.get(el):0;counters.set(el,val);
+  if(calm()||Math.abs(val-from)<0.005){el.textContent=fm(val);return}
+  const t0=performance.now(),dur=900;el.classList.remove('bump');
+  const step=t=>{const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,4);el.textContent=fm(from+(val-from)*e);if(k<1)requestAnimationFrame(step);else{el.textContent=fm(val);void el.offsetWidth;el.classList.add('bump')}};
+  requestAnimationFrame(step)}
+function confetti(){if(calm())return;const box=document.createElement('div');box.className='confetti';document.body.appendChild(box);
+  const cols=['#0E6E62','#0F7B5C','#F2B04A','#B5432E','#0C1618','#7FD1C3'],W=innerWidth,H=innerHeight;
+  for(let i=0;i<70;i++){const p=document.createElement('i');p.style.background=cols[i%cols.length];box.appendChild(p);
+    const x=W/2+(Math.random()-.5)*60,y=H*.55,ang=(Math.random()*Math.PI)+Math.PI,sp=380+Math.random()*420,dx=Math.cos(ang)*sp*(.6+Math.random()),dy=Math.sin(ang)*sp,rot=Math.random()*720-360;
+    p.animate([{transform:`translate(${x}px,${y}px) rotate(0deg)`,opacity:1},{transform:`translate(${x+dx*.6}px,${y+dy*.9}px) rotate(${rot*.6}deg)`,opacity:1,offset:.45},{transform:`translate(${x+dx}px,${y+dy*.2+H*.7}px) rotate(${rot}deg)`,opacity:0}],{duration:1400+Math.random()*700,easing:'cubic-bezier(.2,.7,.3,1)',fill:'forwards'})}
+  setTimeout(()=>box.remove(),2400);if(navigator.vibrate)navigator.vibrate(18)}
+
+/* ---------- webapp: service worker, updates, offline ---------- */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const offer=w=>{if(!w||$('.update'))return;const el=document.createElement('div');el.className='update';el.innerHTML='Nieuwe versie beschikbaar <button>Bijwerken</button>';document.body.appendChild(el);
+      el.querySelector('button').onclick=()=>{w.postMessage('skipWaiting')}};
+    if(reg.waiting&&navigator.serviceWorker.controller)offer(reg.waiting);
+    reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)offer(w)})});
+  }).catch(()=>{});
+  let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded)return;reloaded=true;location.reload()});
+}
+function netState(){let el=$('.offline');if(navigator.onLine){if(el)el.remove();flushOutbox()}else if(!el){el=document.createElement('div');el.className='offline';el.textContent='Offline · wijzigingen worden later opgeslagen';document.body.appendChild(el)}}
+addEventListener('online',netState);addEventListener('offline',netState);
+/* snelkoppelingen vanaf het beginscherm */
+function shortcut(){const n=new URLSearchParams(location.search).get('nieuw');if(!n||!me)return;history.replaceState(null,'',location.pathname);
+  if(n==='factuur')openEditor('inv');else if(n==='uitgave')openTx(null,'uit');else if(n==='uren')openUren()}
+
+connect();netState();requestAnimationFrame(moveInd);
+})();
+</script>
+</body>
+</html>
